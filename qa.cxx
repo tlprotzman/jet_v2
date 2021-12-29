@@ -41,8 +41,8 @@ int main(int argc, char **argv) {
     }
     std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
     
-    // std::string picos_to_read = "smalltest.list"; 
-    std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
+    std::string picos_to_read = "test.list"; 
+    // std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
     std::string bad_run_list = "";
 
 
@@ -100,11 +100,9 @@ int main(int argc, char **argv) {
 
     // Set up event plane finding
     StEpdEpFinder *ep_finder = new StEpdEpFinder(1, "StEpdEpFinderCorrectionHistograms_OUTPUT.root", "StEpdEpFinderCorrectionHistograms_INPUT.root");
-    TClonesArray *epd_hits = new TClonesArray("StPicoEpdHit");
-    // ep_finder->SetnMipThreshold(0.3);
-    // ep_finder->SetMaxTileWeight(3);
-    // ep_finder->SetEpdHitFormat(2); // for StPicoDst
-    reader->tree()->SetBranchAddress("EpdHit", &epd_hits);
+    ep_finder->SetnMipThreshold(0.3);
+    ep_finder->SetMaxTileWeight(3);
+    ep_finder->SetEpdHitFormat(2); // for StPicoDst
 
 
     // Event Loop
@@ -117,6 +115,7 @@ int main(int argc, char **argv) {
 
         // Find event plane
         TVector3 primary_vertex = reader->picoDst()->event()->primaryVertex();
+        TClonesArray *epd_hits = reader->picoDst()->picoArray(8);
         StEpdEpInfo ep_info = ep_finder->Results(epd_hits, primary_vertex, 0);
         ep[0]->Fill(ep_info.EastRawPsi(1));
         ep[1]->Fill(ep_info.WestRawPsi(1));
