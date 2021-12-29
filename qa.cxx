@@ -41,8 +41,8 @@ int main(int argc, char **argv) {
     }
     std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
     
-    // std::string picos_to_read = "test.list"; 
-    std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_0000005.picoDst.root";
+    // std::string picos_to_read = "smalltest.list"; 
+    std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
     std::string bad_run_list = "";
 
 
@@ -87,8 +87,8 @@ int main(int argc, char **argv) {
     // Histograms
     TH1D *jet_momentum = new TH1D("jet_momentum", "Jet Momentum", 50, 0, 35);
     std::vector<TH1D*> ep(6); // e_uncorrected, w_uncorrected, e_phi, w_phi, e_phi_psi, w_phi_psi
-    const char *ep_hist_names[6] = {"east_uncorrelated", 
-                                    "west_uncorrelated",
+    const char *ep_hist_names[6] = {"east_uncorrected", 
+                                    "west_uncorrected",
                                     "east_phi_corrected",
                                     "west_phi_corrected",
                                     "east_phi_psi_corrected",
@@ -111,6 +111,9 @@ int main(int argc, char **argv) {
     int processed_events = 0;
     while (reader->next()) {
         processed_events++;
+        if (processed_events % 1000 == 0) {
+            std::cout << "Processed " << processed_events << " events" << std::endl;
+        }
 
         // Find event plane
         TVector3 primary_vertex = reader->picoDst()->event()->primaryVertex();
@@ -133,22 +136,31 @@ int main(int argc, char **argv) {
     ep_finder->Finish();
 
     // Quick plotting
-    TCanvas *canvas = new TCanvas("canvas", "", 1000, 1000);
+    TCanvas *canvas = new TCanvas("", "", 1000, 1000);
     jet_momentum->Draw("hist");
     gPad->SetLogy();
     canvas->Print("plots/jet_momentum.png");
+    TCanvas *ep_canvas = new TCanvas("ep", "", 1000, 1000);
     for (uint32_t i = 0; i < 6; i+=2) {
         THStack *ep_stack = new THStack();
         TLegend *ep_legend = new TLegend();
+        
         ep[i]->SetLineColor(kRed);
         ep_stack->Add(ep[i]);
         ep_legend->AddEntry(ep[i], "East");
+        
         ep[i+1]->SetLineColor(kBlue);
         ep_stack->Add(ep[i+1]);
         ep_legend->AddEntry(ep[i+1], "West");
+        
         ep_stack->Draw("nostack");
+        ep_stack->GetXaxis()->SetTitle("Phi");
+        ep_stack->GetYaxis()->SetTitle("Counts");
+        ep_stack->SetTitle(ep_hist_names[i] + 5);
         ep_legend->Draw();
-        canvas->Print(Form("plots/%s.png", ep_hist_names[i] + 5));
+        ep_canvas->Print(Form("plots/%s.png", ep_hist_names[i] + 5));
+        delete ep_stack;
+        delete ep_legend;
     }
 }
 
