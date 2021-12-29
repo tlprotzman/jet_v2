@@ -24,4 +24,4 @@ LIBS += -lStEpdUtil
 
 all:
 	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) qa.cxx -o qa.o
-	$(CXX) $(LDFLAGS) $(LIBPATH) qa.o $(LIBS) -o qa
+	$(CXX) $(LDFLAGS) $(LIBPATH) qa.o $(LIBS) -o qa.out

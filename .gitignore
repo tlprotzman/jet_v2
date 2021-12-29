@@ -1,0 +1,7 @@
+.vscode
+plots
+StEpdUtil
+*.o
+*.out
+*.root
+*.list
