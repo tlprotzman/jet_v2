@@ -18,6 +18,7 @@ LIBPATH += -L$(STARPICOPATH)
 LIBPATH += -LStEpdUtil
 
 LIBS  = -lfastjet
+LIBS += -lfastjettools
 LIBS += -lStPicoEvent
 LIBS += -lTStarJetPico
 LIBS += -ljetreader

@@ -19,7 +19,15 @@
 #include "jetreader/reader/reader.h"
 
 // Fastjet Includes
+#include "fastjet/AreaDefinition.hh"
+#include "fastjet/ClusterSequence.hh"
+#include "fastjet/ClusterSequenceArea.hh"
+#include "fastjet/JetDefinition.hh"
 #include "fastjet/PseudoJet.hh"
+#include "fastjet/tools/BackgroundEstimatorBase.hh"
+#include "fastjet/tools/GridMedianBackgroundEstimator.hh"
+#include "fastjet/tools/JetMedianBackgroundEstimator.hh"
+#include "fastjet/tools/Subtractor.hh"
 
 // EPD Includes
 #include "StEpdUtil/StEpdEpFinder.h"
@@ -41,7 +49,7 @@ int main(int argc, char **argv) {
     }
     std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
     
-    std::string picos_to_read = "test.list"; 
+    std::string picos_to_read = "smalltest.list"; 
     // std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
     std::string bad_run_list = "";
 
@@ -83,9 +91,35 @@ int main(int argc, char **argv) {
         std::cout << reader->tree()->GetEntries() << " events considered" << std::endl;
     }    
 
+    
+    // Set up jet finding
+    double jet_r = 0.3;
+    
+    double ghost_maxrap = 1;
+    fastjet::GhostedAreaSpec area_spec(ghost_maxrap);
+    fastjet::AreaDefinition jet_area(fastjet::active_area, area_spec);
+    fastjet::AreaDefinition jet_area_background(fastjet::active_area_explicit_ghosts, fastjet::GhostedAreaSpec(ghost_maxrap));
+
+    fastjet::JetDefinition jet_def(fastjet::antikt_algorithm, jet_r);
+    fastjet::JetDefinition jet_subtraction_jet_def(fastjet::kt_algorithm, jet_r);
+
+    fastjet::Selector jet_selector = fastjet::SelectorAbsRapMax(1) * (!fastjet::SelectorNHardest(2));
+    fastjet::JetMedianBackgroundEstimator jet_background_estimator(jet_selector, jet_subtraction_jet_def, jet_area_background);
+    fastjet::GridMedianBackgroundEstimator grid_background_estimator(1, 0.5);
+
+    fastjet::Subtractor jet_backgorund_subtractor(&jet_background_estimator);
+    fastjet::Subtractor grid_backgorund_subtractor(&grid_background_estimator);
+
+    jet_backgorund_subtractor.set_use_rho_m(true);
+    jet_backgorund_subtractor.set_safe_mass(true);
+
+    grid_backgorund_subtractor.set_use_rho_m(true);
+    grid_backgorund_subtractor.set_safe_mass(true);
 
     // Histograms
-    TH1D *jet_momentum = new TH1D("jet_momentum", "Jet Momentum", 50, 0, 35);
+    TH1D *jet_momentum = new TH1D("jet_momentum", "Jet Momentum", 50, 0, 60);
+    TH1D *jet_momentum_jet_median_subtracted = new TH1D("jet_momentum_median_subtracted", "Jet Momentum, Median Subtracted", 50, -15, 60);
+    TH1D *jet_momentum_grid_median_subtracted = new TH1D("jet_momentum_grid_subtracted", "Jet Momentum, Grid Subtracted", 50, -15, 60);
     std::vector<TH1D*> ep(6); // e_uncorrected, w_uncorrected, e_phi, w_phi, e_phi_psi, w_phi_psi
     const char *ep_hist_names[6] = {"east_uncorrected", 
                                     "west_uncorrected",
@@ -126,9 +160,17 @@ int main(int argc, char **argv) {
         
 
 
-        std::vector<fastjet::PseudoJet> jets = reader->pseudojets();
+        std::vector<fastjet::PseudoJet> tracks = reader->pseudojets();
+        fastjet::ClusterSequenceArea cs = fastjet::ClusterSequenceArea(tracks, jet_def, jet_area);
+        std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets()); // TODO inclusive vs exclusive jets
+
+        jet_background_estimator.set_particles(tracks);
+        grid_background_estimator.set_particles(tracks);
+
         for (fastjet::PseudoJet jet : jets) {
             jet_momentum->Fill(jet.pt());
+            jet_momentum_jet_median_subtracted->Fill(jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt());
+            jet_momentum_grid_median_subtracted->Fill(jet.pt() - grid_background_estimator.rho() * jet.area_4vector().pt());
         }
     }
     std::cout << "Count: " << processed_events << std::endl;
@@ -139,6 +181,12 @@ int main(int argc, char **argv) {
     jet_momentum->Draw("hist");
     gPad->SetLogy();
     canvas->Print("plots/jet_momentum.png");
+    jet_momentum_jet_median_subtracted->Draw("hist");
+    gPad->SetLogy();
+    canvas->Print("plots/jet_momentum_jet_subtracted.png");
+    jet_momentum_grid_median_subtracted->Draw("hist");
+    gPad->SetLogy();
+    canvas->Print("plots/jet_momentum_grid_subtracted.png");
     TCanvas *ep_canvas = new TCanvas("ep", "", 1000, 1000);
     for (uint32_t i = 0; i < 6; i+=2) {
         THStack *ep_stack = new THStack();
