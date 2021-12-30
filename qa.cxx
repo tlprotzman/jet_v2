@@ -117,6 +117,7 @@ int main(int argc, char **argv) {
     grid_backgorund_subtractor.set_safe_mass(true);
 
     // Histograms
+    TH1D *track_constituent_momentum = new TH1D("track_constituent_momentum", "Track Momentum", 50, 0, 40);
     TH1D *jet_momentum = new TH1D("jet_momentum", "Jet Momentum", 50, 0, 60);
     TH1D *jet_momentum_jet_median_subtracted = new TH1D("jet_momentum_median_subtracted", "Jet Momentum, Median Subtracted", 50, -15, 60);
     TH1D *jet_momentum_grid_median_subtracted = new TH1D("jet_momentum_grid_subtracted", "Jet Momentum, Grid Subtracted", 50, -15, 60);
@@ -161,6 +162,16 @@ int main(int argc, char **argv) {
 
 
         std::vector<fastjet::PseudoJet> tracks = reader->pseudojets();
+        for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {    // Let's just play with tpc tracks for now
+            jetreader::VectorInfo track_info = track->user_info<jetreader::VectorInfo>();
+            if (!track_info.isPrimary()) {
+                tracks.erase(track);
+                track--;
+            }
+            else {
+                track_constituent_momentum->Fill(track->pt());
+            }
+        }
         fastjet::ClusterSequenceArea cs = fastjet::ClusterSequenceArea(tracks, jet_def, jet_area);
         std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets()); // TODO inclusive vs exclusive jets
 
@@ -187,6 +198,9 @@ int main(int argc, char **argv) {
     jet_momentum_grid_median_subtracted->Draw("hist");
     gPad->SetLogy();
     canvas->Print("plots/jet_momentum_grid_subtracted.png");
+    track_constituent_momentum->Draw("hist");
+    gPad->SetLogy();
+    canvas->Print("plots/track_constituent_momentum.png");
     TCanvas *ep_canvas = new TCanvas("ep", "", 1000, 1000);
     for (uint32_t i = 0; i < 6; i+=2) {
         THStack *ep_stack = new THStack();
