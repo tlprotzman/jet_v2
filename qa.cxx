@@ -49,6 +49,7 @@ int main(int argc, char **argv) {
     }
     std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
     
+    // std::string picos_to_read = "test.list"; 
     std::string picos_to_read = "smalltest.list"; 
     // std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
     std::string bad_run_list = "";
@@ -131,6 +132,9 @@ int main(int argc, char **argv) {
     for (uint32_t i = 0; i < 6; i++) {
         ep[i] = new TH1D(ep_hist_names[i], ep_hist_names[i], 30, 0, TMath::TwoPi());
     }
+    TH1D *hardcore_jets_pt = new TH1D("hardcore_jets", "Hardcore Jet Pt", 50, -15, 60);
+    TH1D *matched_jets = new TH1D("matched_jets", "Matched Jet Pt", 50, -15, 60);
+    TH1D *jet_z = new TH1D("jet_z", "Jet Z", 25, 0, 1);
     
 
     // Set up event plane finding
@@ -162,27 +166,51 @@ int main(int argc, char **argv) {
 
 
         std::vector<fastjet::PseudoJet> tracks = reader->pseudojets();
+        std::vector<fastjet::PseudoJet> hardcore_tracks;
         for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {    // Let's just play with tpc tracks for now
             jetreader::VectorInfo track_info = track->user_info<jetreader::VectorInfo>();
-            if (!track_info.isPrimary()) {
+            if ((!track_info.isPrimary())) {
                 tracks.erase(track);
                 track--;
             }
             else {
-                track_constituent_momentum->Fill(track->pt());
+                double track_pt = track->pt();
+                track_constituent_momentum->Fill(track_pt);
+                if (track_pt > 2) {
+                    hardcore_tracks.push_back(*track);
+                }
             }
         }
+
+        fastjet::ClusterSequenceArea hc_cs = fastjet::ClusterSequenceArea(hardcore_tracks, jet_def, jet_area);
         fastjet::ClusterSequenceArea cs = fastjet::ClusterSequenceArea(tracks, jet_def, jet_area);
+
+        std::vector<fastjet::PseudoJet> hardcore_jets = fastjet::sorted_by_pt(hc_cs.inclusive_jets());
         std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets()); // TODO inclusive vs exclusive jets
 
         jet_background_estimator.set_particles(tracks);
         grid_background_estimator.set_particles(tracks);
 
-        for (fastjet::PseudoJet jet : jets) {
-            jet_momentum->Fill(jet.pt());
-            jet_momentum_jet_median_subtracted->Fill(jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt());
-            jet_momentum_grid_median_subtracted->Fill(jet.pt() - grid_background_estimator.rho() * jet.area_4vector().pt());
+        for (fastjet::PseudoJet hc_jet : hardcore_jets) {
+            hardcore_jets_pt->Fill(hc_jet.pt());
+            for (fastjet::PseudoJet jet : jets) {
+                if (hc_jet.squared_distance(jet) < 0.3){
+                    double max_pt = 0;
+                    for (auto constituent : jet.constituents()) {
+                        if (constituent.pt() > max_pt) {
+                            max_pt = constituent.pt();
+                        }
+                    }
+                    jet_z->Fill(max_pt / jet.pt());
+                    if (jet.pt() > 20 && max_pt / jet.pt() < 0.85){
+                        jet_momentum->Fill(jet.pt());
+                        jet_momentum_jet_median_subtracted->Fill(jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt());
+                        jet_momentum_grid_median_subtracted->Fill(jet.pt() - grid_background_estimator.rho() * jet.area_4vector().pt());
+                    }
+                }
+            }
         }
+
     }
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();
@@ -201,6 +229,12 @@ int main(int argc, char **argv) {
     track_constituent_momentum->Draw("hist");
     gPad->SetLogy();
     canvas->Print("plots/track_constituent_momentum.png");
+    hardcore_jets_pt->Draw("hist");
+    gPad->SetLogy();
+    canvas->Print("plots/hardcore_jet_pt.png");
+    jet_z->Draw("hist");
+    gPad->SetLogy();
+    canvas->Print("plots/jet_z.png");
     TCanvas *ep_canvas = new TCanvas("ep", "", 1000, 1000);
     for (uint32_t i = 0; i < 6; i+=2) {
         THStack *ep_stack = new THStack();
