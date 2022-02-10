@@ -4,6 +4,8 @@
 // tlp220@lehigh.edu
 // December 27, 2021
 
+// Comment your damn code Tristan!!!
+
 // ROOT Includes
 #include "TROOT.h"
 #include "TCanvas.h"
@@ -14,6 +16,7 @@
 #include "TVector3.h"
 #include "THStack.h"
 #include "TLegend.h"
+#include "TTree.h"
 
 // Jetreader Includes
 #include "jetreader/reader/reader.h"
@@ -42,6 +45,9 @@
 
 
 int main(int argc, char **argv) {
+    ROOT::EnableImplicitMT();
+
+    int n = kMaxInt;
     // PARAMETERS
     int DEBUG_LEVEL = 0;
     if (getenv("JR_DEBUG_LEVEL") != nullptr) {
@@ -49,8 +55,8 @@ int main(int argc, char **argv) {
     }
     std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
     
-    // std::string picos_to_read = "test.list"; 
-    std::string picos_to_read = "smalltest.list"; 
+    std::string picos_to_read = "test.list"; 
+    // std::string picos_to_read = "smalltest.list"; 
     // std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
     std::string bad_run_list = "";
 
@@ -119,9 +125,6 @@ int main(int argc, char **argv) {
 
     // Histograms
     TH1D *track_constituent_momentum = new TH1D("track_constituent_momentum", "Track Momentum", 50, 0, 40);
-    TH1D *jet_momentum = new TH1D("jet_momentum", "Jet Momentum", 50, 0, 60);
-    TH1D *jet_momentum_jet_median_subtracted = new TH1D("jet_momentum_median_subtracted", "Jet Momentum, Median Subtracted", 50, -15, 60);
-    TH1D *jet_momentum_grid_median_subtracted = new TH1D("jet_momentum_grid_subtracted", "Jet Momentum, Grid Subtracted", 50, -15, 60);
     std::vector<TH1D*> ep(6); // e_uncorrected, w_uncorrected, e_phi, w_phi, e_phi_psi, w_phi_psi
     const char *ep_hist_names[6] = {"east_uncorrected", 
                                     "west_uncorrected",
@@ -132,9 +135,22 @@ int main(int argc, char **argv) {
     for (uint32_t i = 0; i < 6; i++) {
         ep[i] = new TH1D(ep_hist_names[i], ep_hist_names[i], 30, 0, TMath::TwoPi());
     }
-    TH1D *hardcore_jets_pt = new TH1D("hardcore_jets", "Hardcore Jet Pt", 50, -15, 60);
-    TH1D *matched_jets = new TH1D("matched_jets", "Matched Jet Pt", 50, -15, 60);
-    TH1D *jet_z = new TH1D("jet_z", "Jet Z", 25, 0, 1);
+
+    // Trees
+    TTree *jet_data = new TTree("jet_data", "Jet Data");
+    double eta, phi;
+    jet_data->Branch("jet_eta", &eta);
+    jet_data->Branch("jet_phi", &phi);
+    double hardcore_jet_momentum, jet_momentum, jet_momentum_median_subtracted, jet_momentum_grid_subtracted;
+    jet_data->Branch("jet_momentum", &jet_momentum);
+    jet_data->Branch("jet_momentum_median_subtracted", &jet_momentum_median_subtracted);
+    jet_data->Branch("jet_momentum_grid_subtracted", &jet_momentum_grid_subtracted);
+    jet_data->Branch("hardcore_jet_momentum", &hardcore_jet_momentum);
+    double jet_z;
+    jet_data->Branch("jet_z", &jet_z);
+    double event_plane_east, event_plane_west;
+    jet_data->Branch("event_plane_east", &event_plane_east);
+    jet_data->Branch("event_plane_west", &event_plane_west);
     
 
     // Set up event plane finding
@@ -151,6 +167,9 @@ int main(int argc, char **argv) {
         if (processed_events % 1000 == 0) {
             std::cout << "Processed " << processed_events << " events" << std::endl;
         }
+        if (processed_events > n){
+            break;
+        }
 
         // Find event plane
         TVector3 primary_vertex = reader->picoDst()->event()->primaryVertex();
@@ -162,6 +181,9 @@ int main(int argc, char **argv) {
         ep[3]->Fill(ep_info.WestPhiWeightedPsi(1));
         ep[4]->Fill(ep_info.EastPhiWeightedAndShiftedPsi(1));
         ep[5]->Fill(ep_info.WestPhiWeightedAndShiftedPsi(1));
+        event_plane_east = ep_info.EastPhiWeightedAndShiftedPsi(1);
+        event_plane_west = ep_info.WestPhiWeightedAndShiftedPsi(1);
+        // continue;
         
 
 
@@ -192,7 +214,7 @@ int main(int argc, char **argv) {
         grid_background_estimator.set_particles(tracks);
 
         for (fastjet::PseudoJet hc_jet : hardcore_jets) {
-            hardcore_jets_pt->Fill(hc_jet.pt());
+            hardcore_jet_momentum = hc_jet.pt();
             for (fastjet::PseudoJet jet : jets) {
                 if (hc_jet.squared_distance(jet) < 0.3){
                     double max_pt = 0;
@@ -201,61 +223,74 @@ int main(int argc, char **argv) {
                             max_pt = constituent.pt();
                         }
                     }
-                    jet_z->Fill(max_pt / jet.pt());
+                    jet_z = max_pt / jet.pt();
                     if (jet.pt() > 20 && max_pt / jet.pt() < 0.85){
-                        jet_momentum->Fill(jet.pt());
-                        jet_momentum_jet_median_subtracted->Fill(jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt());
-                        jet_momentum_grid_median_subtracted->Fill(jet.pt() - grid_background_estimator.rho() * jet.area_4vector().pt());
+                        jet_momentum = jet.pt();
+                        jet_momentum_median_subtracted = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
+                        jet_momentum_grid_subtracted = jet.pt() - grid_background_estimator.rho() * jet.area_4vector().pt();
+
+                        eta = jet.eta();
+                        phi = jet.phi();
+                        jet_data->Fill();
+                        std::cout << "fillig..." << std::endl;
                     }
                 }
             }
         }
-
     }
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();
 
+    // Write data to file
+    TFile *outfile = new TFile("out.root", "RECREATE");
+    jet_data->SetDirectory(outfile);
+    jet_data->Write();
+    track_constituent_momentum->SetDirectory(outfile);
+    track_constituent_momentum->Write();
+    outfile->Close();
+
+
     // Quick plotting
-    TCanvas *canvas = new TCanvas("", "", 1000, 1000);
-    jet_momentum->Draw("hist");
-    gPad->SetLogy();
-    canvas->Print("plots/jet_momentum.png");
-    jet_momentum_jet_median_subtracted->Draw("hist");
-    gPad->SetLogy();
-    canvas->Print("plots/jet_momentum_jet_subtracted.png");
-    jet_momentum_grid_median_subtracted->Draw("hist");
-    gPad->SetLogy();
-    canvas->Print("plots/jet_momentum_grid_subtracted.png");
-    track_constituent_momentum->Draw("hist");
-    gPad->SetLogy();
-    canvas->Print("plots/track_constituent_momentum.png");
-    hardcore_jets_pt->Draw("hist");
-    gPad->SetLogy();
-    canvas->Print("plots/hardcore_jet_pt.png");
-    jet_z->Draw("hist");
-    gPad->SetLogy();
-    canvas->Print("plots/jet_z.png");
-    TCanvas *ep_canvas = new TCanvas("ep", "", 1000, 1000);
-    for (uint32_t i = 0; i < 6; i+=2) {
-        THStack *ep_stack = new THStack();
-        TLegend *ep_legend = new TLegend();
+    // TCanvas *canvas = new TCanvas("", "", 1000, 1000);
+    // jet_momentum->Draw("hist");
+    // gPad->SetLogy();
+    // canvas->Print("plots/jet_momentum.png");
+    // jet_momentum_jet_median_subtracted->Draw("hist");
+    // gPad->SetLogy();
+    // canvas->Print("plots/jet_momentum_jet_subtracted.png");
+    // jet_momentum_grid_median_subtracted->Draw("hist");
+    // gPad->SetLogy();
+    // canvas->Print("plots/jet_momentum_grid_subtracted.png");
+    // track_constituent_momentum->Draw("hist");
+    // gPad->SetLogy();
+    // canvas->Print("plots/track_constituent_momentum.png");
+    // hardcore_jets_pt->Draw("hist");
+    // gPad->SetLogy();
+    // canvas->Print("plots/hardcore_jet_pt.png");
+    // jet_z->Draw("hist");
+    // gPad->SetLogy();
+    // canvas->Print("plots/jet_z.png");
+    // TCanvas *ep_canvas = new TCanvas("ep", "", 1000, 1000);
+    // for (uint32_t i = 0; i < 6; i+=2) {
+    //     THStack *ep_stack = new THStack();
+    //     TLegend *ep_legend = new TLegend();
         
-        ep[i]->SetLineColor(kRed);
-        ep_stack->Add(ep[i]);
-        ep_legend->AddEntry(ep[i], "East");
+    //     ep[i]->SetLineColor(kRed);
+    //     ep_stack->Add(ep[i]);
+    //     ep_legend->AddEntry(ep[i], "East");
         
-        ep[i+1]->SetLineColor(kBlue);
-        ep_stack->Add(ep[i+1]);
-        ep_legend->AddEntry(ep[i+1], "West");
+    //     ep[i+1]->SetLineColor(kBlue);
+    //     ep_stack->Add(ep[i+1]);
+    //     ep_legend->AddEntry(ep[i+1], "West");
         
-        ep_stack->Draw("nostack");
-        ep_stack->GetXaxis()->SetTitle("Phi");
-        ep_stack->GetYaxis()->SetTitle("Counts");
-        ep_stack->SetTitle(ep_hist_names[i] + 5);
-        ep_legend->Draw();
-        ep_canvas->Print(Form("plots/%s.png", ep_hist_names[i] + 5));
-        delete ep_stack;
-        delete ep_legend;
-    }
+    //     ep_stack->Draw("nostack");
+    //     ep_stack->GetXaxis()->SetTitle("Phi");
+    //     ep_stack->GetYaxis()->SetTitle("Counts");
+    //     ep_stack->SetTitle(ep_hist_names[i] + 5);
+    //     ep_legend->Draw();
+    //     ep_canvas->Print(Form("plots/%s.png", ep_hist_names[i] + 5));
+    //     delete ep_stack;
+    //     delete ep_legend;
+    // }
 }
 
