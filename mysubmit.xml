@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<job maxFilesPerProcess="5" simulateSubmission="false" fileListSyntax="paths">
+    <input URL="catalog:star.bnl.gov?production=P20ic,filetype=daq_reco_PicoDst,filename~st_physics,storage!=hpss" nFiles="5" />
+    <command>
+        cat $FILELIST
+        ls
+        time singularity exec -B /direct -B /star -B /afs -B /gpfs -B /home/starlib -B /tmp starjet.simg ./qa.out -f $FILELIST -e -j $JOBID 
+        mv StEpdEpFinderCorrectionHistograms_OUTPUT.root $JOBID.StEpdEpFinderCorrectionHistograms_OUTPUT.root
+        mv Resolution_StEpdEpFinderCorrectionHistograms_OUTPUT.root $JOBID.Resolution_StEpdEpFinderCorrectionHistograms_OUTPUT.root
+        ls
+    </command>
+
+    <stdout URL="file:/star/u/protzt/analysis/jetv2_isobar/output/logs/$JOBID.log" />
+    <stderr URL="file:/star/u/protzt/analysis/jetv2_isobar/output/logs/$JOBID.err" />
+
+
+    <SandBox installer="ZIP">
+        <Package>
+            <File>file:/star/u/protzt/analysis/jetv2_isobar/qa.out</File>
+            <File>file:/star/u/protzt/analysis/jetv2_isobar/starjet.simg</File>
+        </Package>
+    </SandBox>
+
+    <ResourceUsage>
+        <Times>
+            <MaxWallTime>1</MaxWallTime>
+        </Times>
+    </ResourceUsage>
+
+    <output fromScratch="*.root" toURL="file:/star/u/protzt/analysis/jetv2_isobar/output/" />
+
+    <Generator>
+        <Location>./scheduler/report/</Location>
+        <ScriptLocation>./scheduler/csh/</ScriptLocation>
+        <!-- <ReportLocation>./scheduler/report></ReportLocation> -->
+        <ListLocation>./scheduler/list/</ListLocation>
+    </Generator>
+</job>
+<!-- get_file_list.pl -keys path,filename -delim '/' -cond production=P20ic,trgsetupname=production_isobar_2018,filetype=daq_reco_PicoDst,filename~st_physics,storage=local -limit 0 > isobar200_run18_P20ic_picodsts.txt -->

@@ -12,3 +12,6 @@
         * Phi corrected
         * Phi/Psi corrected
     * Track cut QA
+
+
+* add trigger cut (post?)

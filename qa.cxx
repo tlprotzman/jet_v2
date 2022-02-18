@@ -38,16 +38,66 @@
 #include "StPicoEvent/StPicoEpdHit.h"
 
 // C/C++ Libraries
+#include <unistd.h>
 #include <iostream>
+#include <fstream>
 #include <stdlib.h>
 #include <string>
 #include <vector>
 
+// My includes
+#include "setup.h"
+
 
 int main(int argc, char **argv) {
-    ROOT::EnableImplicitMT();
-
+    // Build filelist
+    // int num_input_files = std::stoi(getenv("INPUTFILECOUNT"));
+    // std::ofstream myfilelist("myfilelist.list", std::ofstream::out);
+    // for (size_t i = 0; i < num_input_files; i++) {
+    //     myfilelist << getenv(Form("INPUTFILE%d", i)) << std::endl;
+    //     std::cout << getenv(Form("INPUTFILE%d", i)) << std::endl;
+    // }
+    // myfilelist.close();
+    // Input argument parsing
+    if (argc < 3) {
+        std::cout << "invoke with " << argv[0] << " -f {pico list}" << std::endl;
+        return -1;
+    }
+    int optstring;
     int n = kMaxInt;
+    bool only_ep_finding = false;
+    std::string jobid = "";
+    std::string picos_to_read;
+    while ((optstring = getopt(argc, argv, "f:en:j:s")) != -1) {
+        switch(optstring) {
+            case 'f':
+                picos_to_read = std::string(optarg);
+                break;
+            case 'e':
+                only_ep_finding = true;
+                break;
+            case 'n':
+                n = std::stoi(optarg);
+                break;
+            case 'j':
+                jobid = std::string(optarg);
+                break;
+            case 's':
+                picos_to_read = "myfilelist.list";
+                break;
+            default: break;
+        }
+    }
+    std::cout << Form("Running %d events from %s%s\n\n", n, picos_to_read.c_str(), only_ep_finding ? ", just finding event plane" : "") << std::endl;
+    // std::ifstream filelist(picos_to_read);
+    // std::string line;
+    // while (filelist >> line) {
+    //     std::cout << line << std::endl;
+    // }
+    // filelist.close();
+    
+    // ROOT::EnableImplicitMT();
+
     // PARAMETERS
     int DEBUG_LEVEL = 0;
     if (getenv("JR_DEBUG_LEVEL") != nullptr) {
@@ -55,7 +105,7 @@ int main(int argc, char **argv) {
     }
     std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
     
-    std::string picos_to_read = "test.list"; 
+    // std::string picos_to_read = "test.list"; 
     // std::string picos_to_read = "smalltest.list"; 
     // std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
     std::string bad_run_list = "";
@@ -63,45 +113,12 @@ int main(int argc, char **argv) {
 
     // INITIALIZATION
     jetreader::Reader *reader = new jetreader::Reader(picos_to_read);
-    // CUTS
-    // Are we using a bad run list?
-    if (bad_run_list != "") {
-        reader->eventSelector()->addBadRuns(bad_run_list);
-    }
-    
-    // Vertex Position
-    reader->eventSelector()->setVzRange(-50, 50);
-    reader->eventSelector()->setVrMax(0.5);
-
-    // Track cuts
-    reader->trackSelector()->setPtMax(30.0);
-    reader->trackSelector()->rejectEventOnPtFailure(true);
-    // reader->trackSelector()->setDcaMax(trackDCACut);
-    // reader->trackSelector()->setNHitsMin(trackNhitCut);
-    // reader->trackSelector()->setNHitsFracMin(trackNhitFracCut);
-
-    // Tower cuts
-    reader->useHadronicCorrection(true, 1.0);
-    reader->useApproximateTrackTowerMatching(true);
-    std::string badtowerlist = "";
-    // if(removebadtowers){
-    //   badtowerlist = "test.csv";
-    //   reader->towerSelector()->addBadTowers(badtowerlist);
-    // }
-    reader->towerSelector()->setEtMax(30.0);
-    reader->towerSelector()->rejectEventOnEtFailure(true);
+    setup_cuts(reader);
 
     
-    // Initialize Reader
-    reader->Init();
-    if (DEBUG_LEVEL > 0) {
-        std::cout << reader->tree()->GetEntries() << " events considered" << std::endl;
-    }    
-
     
     // Set up jet finding
     double jet_r = 0.3;
-    
     double ghost_maxrap = 1;
     fastjet::GhostedAreaSpec area_spec(ghost_maxrap);
     fastjet::AreaDefinition jet_area(fastjet::active_area, area_spec);
@@ -112,45 +129,21 @@ int main(int argc, char **argv) {
 
     fastjet::Selector jet_selector = fastjet::SelectorAbsRapMax(1) * (!fastjet::SelectorNHardest(2));
     fastjet::JetMedianBackgroundEstimator jet_background_estimator(jet_selector, jet_subtraction_jet_def, jet_area_background);
-    fastjet::GridMedianBackgroundEstimator grid_background_estimator(1, 0.5);
 
     fastjet::Subtractor jet_backgorund_subtractor(&jet_background_estimator);
-    fastjet::Subtractor grid_backgorund_subtractor(&grid_background_estimator);
 
     jet_backgorund_subtractor.set_use_rho_m(true);
     jet_backgorund_subtractor.set_safe_mass(true);
 
-    grid_backgorund_subtractor.set_use_rho_m(true);
-    grid_backgorund_subtractor.set_safe_mass(true);
-
     // Histograms
-    TH1D *track_constituent_momentum = new TH1D("track_constituent_momentum", "Track Momentum", 50, 0, 40);
-    std::vector<TH1D*> ep(6); // e_uncorrected, w_uncorrected, e_phi, w_phi, e_phi_psi, w_phi_psi
-    const char *ep_hist_names[6] = {"east_uncorrected", 
-                                    "west_uncorrected",
-                                    "east_phi_corrected",
-                                    "west_phi_corrected",
-                                    "east_phi_psi_corrected",
-                                    "west_phi_psi_corrected",};
-    for (uint32_t i = 0; i < 6; i++) {
-        ep[i] = new TH1D(ep_hist_names[i], ep_hist_names[i], 30, 0, TMath::TwoPi());
-    }
+    qa_histograms qa_hist;
+    ep_histograms ep_hist;
+    setup_histograms(&qa_hist, &ep_hist);
 
     // Trees
     TTree *jet_data = new TTree("jet_data", "Jet Data");
-    double eta, phi;
-    jet_data->Branch("jet_eta", &eta);
-    jet_data->Branch("jet_phi", &phi);
-    double hardcore_jet_momentum, jet_momentum, jet_momentum_median_subtracted, jet_momentum_grid_subtracted;
-    jet_data->Branch("jet_momentum", &jet_momentum);
-    jet_data->Branch("jet_momentum_median_subtracted", &jet_momentum_median_subtracted);
-    jet_data->Branch("jet_momentum_grid_subtracted", &jet_momentum_grid_subtracted);
-    jet_data->Branch("hardcore_jet_momentum", &hardcore_jet_momentum);
-    double jet_z;
-    jet_data->Branch("jet_z", &jet_z);
-    double event_plane_east, event_plane_west;
-    jet_data->Branch("event_plane_east", &event_plane_east);
-    jet_data->Branch("event_plane_west", &event_plane_west);
+    jet_tree_data datum;
+    setup_tree(jet_data, &datum);    
     
 
     // Set up event plane finding
@@ -171,19 +164,46 @@ int main(int argc, char **argv) {
             break;
         }
 
+        StPicoEvent *event = reader->picoDst()->event();
+
+        // Event Info
+        datum.trigger_id = event->triggerIds();
+        datum.run_number = event->runId();
+
+        TVector3 primary_vertex = event->primaryVertex();
+        datum.vx = event->primaryVertex().X();
+        datum.vy = event->primaryVertex().Y();
+        datum.vz = event->primaryVertex().Z();
+        qa_hist.vz->Fill(datum.vz);
+        qa_hist.vr->Fill(datum.vx, datum.vy);
+        datum.vpd_vz = event->vzVpd();
+
+        datum.refmult3 = event->refMult3();
+        qa_hist.refmult3->Fill(datum.refmult3);
+        datum.tofmult = event->btofTrayMultiplicity();
+        qa_hist.tofmult->Fill(datum.tofmult);
+        datum.bbc_east_rate = event->bbcEastRate();
+        datum.bbc_west_rate = event->bbcWestRate();
+        qa_hist.bbc_rate->Fill(datum.bbc_east_rate, datum.bbc_west_rate);
+
+        
         // Find event plane
-        TVector3 primary_vertex = reader->picoDst()->event()->primaryVertex();
         TClonesArray *epd_hits = reader->picoDst()->picoArray(8);
         StEpdEpInfo ep_info = ep_finder->Results(epd_hits, primary_vertex, 0);
-        ep[0]->Fill(ep_info.EastRawPsi(1));
-        ep[1]->Fill(ep_info.WestRawPsi(1));
-        ep[2]->Fill(ep_info.EastPhiWeightedPsi(1));
-        ep[3]->Fill(ep_info.WestPhiWeightedPsi(1));
-        ep[4]->Fill(ep_info.EastPhiWeightedAndShiftedPsi(1));
-        ep[5]->Fill(ep_info.WestPhiWeightedAndShiftedPsi(1));
-        event_plane_east = ep_info.EastPhiWeightedAndShiftedPsi(1);
-        event_plane_west = ep_info.WestPhiWeightedAndShiftedPsi(1);
-        // continue;
+        ep_hist.east_uncorrected->Fill(ep_info.EastRawPsi(2));
+        ep_hist.west_uncorrected->Fill(ep_info.WestRawPsi(2));
+        ep_hist.east_phi_corrected->Fill(ep_info.EastPhiWeightedPsi(2));
+        ep_hist.west_phi_corrected->Fill(ep_info.WestPhiWeightedPsi(2));
+        ep_hist.east_phi_psi_corrected->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2));
+        ep_hist.west_phi_psi_corrected->Fill(ep_info.WestPhiWeightedAndShiftedPsi(2));
+        ep_hist.ep_correlation->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2), ep_info.WestPhiWeightedAndShiftedPsi(2));
+        datum.event_plane_east = ep_info.EastPhiWeightedAndShiftedPsi(2);
+        datum.event_plane_west = ep_info.WestPhiWeightedAndShiftedPsi(2);
+        datum.event_plane_full = ep_info.FullPhiWeightedAndShiftedPsi(2);
+        if (only_ep_finding) {
+            jet_data->Fill();
+            continue;
+        }
         
 
 
@@ -197,7 +217,9 @@ int main(int argc, char **argv) {
             }
             else {
                 double track_pt = track->pt();
-                track_constituent_momentum->Fill(track_pt);
+                qa_hist.track_momentum->Fill(track_pt);
+                qa_hist.track_eta->Fill(track->eta());
+                qa_hist.track_phi->Fill(track->phi());
                 if (track_pt > 2) {
                     hardcore_tracks.push_back(*track);
                 }
@@ -208,14 +230,16 @@ int main(int argc, char **argv) {
         fastjet::ClusterSequenceArea cs = fastjet::ClusterSequenceArea(tracks, jet_def, jet_area);
 
         std::vector<fastjet::PseudoJet> hardcore_jets = fastjet::sorted_by_pt(hc_cs.inclusive_jets());
-        std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets()); // TODO inclusive vs exclusive jets
+        std::vector<fastjet::PseudoJet> jets;
+        if (hardcore_jets.size() > 0) {
+            jets = fastjet::sorted_by_pt(cs.inclusive_jets()); // TODO inclusive vs exclusive jets
+        }
 
         jet_background_estimator.set_particles(tracks);
-        grid_background_estimator.set_particles(tracks);
 
         for (fastjet::PseudoJet hc_jet : hardcore_jets) {
-            hardcore_jet_momentum = hc_jet.pt();
-            for (fastjet::PseudoJet jet : jets) {
+            datum.jet_hardcore_momentum = hc_jet.pt();
+            for (fastjet::PseudoJet jet : jets) {   // hardcore jet matching
                 if (hc_jet.squared_distance(jet) < 0.3){
                     double max_pt = 0;
                     for (auto constituent : jet.constituents()) {
@@ -223,16 +247,16 @@ int main(int argc, char **argv) {
                             max_pt = constituent.pt();
                         }
                     }
-                    jet_z = max_pt / jet.pt();
+                    datum.jet_z = max_pt / jet.pt();
                     if (jet.pt() > 20 && max_pt / jet.pt() < 0.85){
-                        jet_momentum = jet.pt();
-                        jet_momentum_median_subtracted = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-                        jet_momentum_grid_subtracted = jet.pt() - grid_background_estimator.rho() * jet.area_4vector().pt();
+                        datum.jet_momentum = jet.pt();
+                        datum.jet_momentum_medium_subtracted = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
 
-                        eta = jet.eta();
-                        phi = jet.phi();
+                        datum.jet_eta = jet.eta();
+                        datum.jet_phi = jet.phi();
+                        
                         jet_data->Fill();
-                        std::cout << "fillig..." << std::endl;
+                        std::cout << "filling..." << std::endl;
                     }
                 }
             }
@@ -242,55 +266,11 @@ int main(int argc, char **argv) {
     ep_finder->Finish();
 
     // Write data to file
-    TFile *outfile = new TFile("out.root", "RECREATE");
+    TFile *outfile = new TFile(Form("%sout.root", jobid.c_str()), "RECREATE");
     jet_data->SetDirectory(outfile);
     jet_data->Write();
-    track_constituent_momentum->SetDirectory(outfile);
-    track_constituent_momentum->Write();
+    save_histograms(&qa_hist, &ep_hist, outfile);
     outfile->Close();
 
-
-    // Quick plotting
-    // TCanvas *canvas = new TCanvas("", "", 1000, 1000);
-    // jet_momentum->Draw("hist");
-    // gPad->SetLogy();
-    // canvas->Print("plots/jet_momentum.png");
-    // jet_momentum_jet_median_subtracted->Draw("hist");
-    // gPad->SetLogy();
-    // canvas->Print("plots/jet_momentum_jet_subtracted.png");
-    // jet_momentum_grid_median_subtracted->Draw("hist");
-    // gPad->SetLogy();
-    // canvas->Print("plots/jet_momentum_grid_subtracted.png");
-    // track_constituent_momentum->Draw("hist");
-    // gPad->SetLogy();
-    // canvas->Print("plots/track_constituent_momentum.png");
-    // hardcore_jets_pt->Draw("hist");
-    // gPad->SetLogy();
-    // canvas->Print("plots/hardcore_jet_pt.png");
-    // jet_z->Draw("hist");
-    // gPad->SetLogy();
-    // canvas->Print("plots/jet_z.png");
-    // TCanvas *ep_canvas = new TCanvas("ep", "", 1000, 1000);
-    // for (uint32_t i = 0; i < 6; i+=2) {
-    //     THStack *ep_stack = new THStack();
-    //     TLegend *ep_legend = new TLegend();
-        
-    //     ep[i]->SetLineColor(kRed);
-    //     ep_stack->Add(ep[i]);
-    //     ep_legend->AddEntry(ep[i], "East");
-        
-    //     ep[i+1]->SetLineColor(kBlue);
-    //     ep_stack->Add(ep[i+1]);
-    //     ep_legend->AddEntry(ep[i+1], "West");
-        
-    //     ep_stack->Draw("nostack");
-    //     ep_stack->GetXaxis()->SetTitle("Phi");
-    //     ep_stack->GetYaxis()->SetTitle("Counts");
-    //     ep_stack->SetTitle(ep_hist_names[i] + 5);
-    //     ep_legend->Draw();
-    //     ep_canvas->Print(Form("plots/%s.png", ep_hist_names[i] + 5));
-    //     delete ep_stack;
-    //     delete ep_legend;
-    // }
 }
 

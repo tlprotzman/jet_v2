@@ -23,7 +23,14 @@ LIBS += -lStPicoEvent
 LIBS += -lTStarJetPico
 LIBS += -ljetreader
 LIBS += -lStEpdUtil
+LIBS += -lNetx
 
-all:
-	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) qa.cxx -o qa.o
-	$(CXX) $(LDFLAGS) $(LIBPATH) qa.o $(LIBS) -o qa.out
+objects = qa.o setup.o
+
+%.o: %.cxx
+	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) $< -o $@
+
+qa.out: $(objects)
+	$(CXX) $(LDFLAGS) $(LIBPATH) $(objects) $(LIBS) -o qa.out
+
+all: qa.out
