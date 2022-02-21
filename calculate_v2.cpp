@@ -52,8 +52,9 @@ void calculate_v2(std::string infile_path = "out.root") {
 
     // Set up histograms
     TH1D *phi_spectra = new TH1D("phi_spectra", "Phi Spectra", 100, 0, 3.5);
-    TH1D *phi_relative = new TH1D("phi_relative", "Phi relative to ep", 30, 0, 2);
+    TH1D *phi_relative = new TH1D("phi_relative", "Phi relative to ep", 15, 0, TMath::PiOver2());
     TH2D *phi_ep = new TH2D("phi_ep", "Phi vs EP", 100, 0, 3.5, 100, 0, 3.5);
+    TH1D *momentum_spectra = new TH1D("momentum_spectra", "Momentum Spectra", 30, 0, 40);
     TH1D *event_plane[6] = {new TH1D("event_plane_east", "event_plane_east", 30, 0, TMath::Pi()),
                             new TH1D("event_plane_west", "event_plane_west", 30, 0, TMath::Pi()),
                             new TH1D("event_plane_east_corrected", "event_plane_east_corrected", 30, 0, TMath::Pi()),
@@ -64,9 +65,11 @@ void calculate_v2(std::string infile_path = "out.root") {
     TH2D *ep = new TH2D("ep", "ep", 30, 0, TMath::Pi(), 30, -0, TMath::Pi());
     TH2D *ep_corrected = new TH2D("ep_corrected", "ep_corrected", 30, 0, TMath::Pi(), 30, -0, TMath::Pi());
 
+    double calculated_v2 = 0;
+    Long64_t events = 0;
     for (Long64_t n = 0; n < event_tree->GetEntries(); n++) {
         event_tree->GetEvent(n);
-        if (centrality_class <= 0 || centrality_class >= 16) {  // accept between 40-20% central
+        if (centrality_class <= 4 || centrality_class >= 12) {  // accept between 40-20% central
             continue;
         }
         
@@ -94,15 +97,23 @@ void calculate_v2(std::string infile_path = "out.root") {
         phi_spectra->Fill(jet_phi);
 
         double relative = abs(jet_phi - event_plane_full);
-        if (relative > TMath::PiOver2()) {
+        while (relative > TMath::PiOver2()) {
             relative -= TMath::PiOver2();
+        }
+        while (relative < -1 * TMath::PiOver2()) {
+            relative += TMath::PiOver2();
         }
         // std::cout << relative << std::endl;
         // if (relative > TMath::PiOver2()) {
         //     relative -= TMath::PiOver2();
         // }
         phi_relative->Fill(relative);
+        calculated_v2 += cos(2 * relative);
+        events++;
+
+        momentum_spectra->Fill(jet_momentum_corrected);
     }
+    std::cout << "Calculated V2: " << calculated_v2 / events << std::endl;
 
     // Apply corrections to EPD to account for bias from missing TPC sector
     double **correction_factor = (double**) malloc(2 * sizeof(double*));
@@ -128,10 +139,10 @@ void calculate_v2(std::string infile_path = "out.root") {
     }
 
     // Fitting histogram
-    TF1 *v2_fit = new TF1("v2", "[0] + [1] * 2 * cos(2*x)", 0, TMath::PiOver2());
-    v2_fit->SetParameters(0);
+    TF1 *v2_fit = new TF1("v2", "[0] * (1 + [1] * 2 * cos(2*x))", 0, TMath::PiOver2());
+    v2_fit->SetParameters(1, 0);
     v2_fit->SetParNames("offset", "v2");
-    phi_relative->Scale(1 / phi_relative->GetBinContent(1));
+    // phi_relative->Scale(1 / phi_relative->GetBinContent(1));
     phi_relative->Fit("v2");
 
     // Drawing histograms, probably move later?
@@ -146,6 +157,7 @@ void calculate_v2(std::string infile_path = "out.root") {
     draw_anything(event_plane[3], "plots/ep_west_corrected.png", "hist norm");
     draw_anything(event_plane[4], "plots/ep_average.png");
     draw_anything(event_plane[5], "plots/ep_diff.png");
+    draw_anything(momentum_spectra, "plots/momentum_spectra.png");
     gStyle->SetOptStat(0);
     draw_anything(ep, "plots/EP.png", "colz");
     draw_anything(phi_ep, "plots/phi_ep.png", "colz");
@@ -172,11 +184,16 @@ void calculate_v2(std::string infile_path = "out.root") {
 
     gPad->SetMargin(0.14, 0.9, 0.9, 0.9);
     phi_relative->Draw("e");
-    phi_relative->SetXTitle("#phi");
+    phi_relative->SetXTitle("#Delta#phi=|#phi^{jet}-#Psi_{2}|");
     phi_relative->SetYTitle("#frac{dN}{d#Delta#phi}");
-    phi_relative->GetFunction("v2")->DrawF1(0, TMath::PiOver2(), "C same");
-    TLatex formula = TLatex(1.2, 1, Form("%.3f + %.3f cos(2#phi)", phi_relative->GetFunction("v2")->GetParameter("offset"), phi_relative->GetFunction("v2")->GetParameter("v2")));
+    phi_relative->GetFunction("v2")->DrawF1(-1 * TMath::PiOver2(), TMath::PiOver2(), "C same");
+    v2_fit->SetParameters(phi_relative->GetFunction("v2")->GetParameter("offset"), calculated_v2 / events);
+    v2_fit->SetLineColor(kBlue);
+    v2_fit->DrawF1(-1 * TMath::PiOver2(), TMath::PiOver2(), "same");
+    TLatex formula = TLatex();
     formula.SetTextSize(0.03);
     formula.Draw();
+    formula.DrawLatexNDC(0.4, 0.8, Form("red: %.3f(1 + 2 * %.3f cos(2#phi))", phi_relative->GetFunction("v2")->GetParameter("offset"), phi_relative->GetFunction("v2")->GetParameter("v2")));
+    formula.DrawLatexNDC(0.4, 0.75, Form("blue: %.3f(1 + 2 * %.3f cos(2#phi))", phi_relative->GetFunction("v2")->GetParameter("offset"), calculated_v2 / events));
     c.Print("plots/phi_relative.png");
 }
