@@ -1,6 +1,7 @@
 #include "setup.h"
 
 #include "jetreader/reader/reader.h"
+#include "jetreader/reader/centrality_def.h"
 #include "TTree.h"
 #include "TH1D.h"
 #include "TH2D.h"
@@ -58,30 +59,43 @@ void setup_cuts(jetreader::Reader *reader) {
     reader->towerSelector()->setEtMax(tower_et_max);
     reader->towerSelector()->rejectEventOnEtFailure(reject_tower_on_fail);
 
+    // Centrality
+    reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Zr);
+    reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Ru);
+
     reader->Init();
 }
 
 void setup_tree(TTree *tree, jet_tree_data *datum) {
     // Jet Spatial Components
-    // tree->Branch("jet_eta", &datum->jet_eta);
-    // tree->Branch("jet_phi", &datum->jet_phi);
+    tree->Branch("jet_eta", &datum->jet_eta);
+    tree->Branch("jet_phi", &datum->jet_phi);
+    tree->Branch("vx", &datum->vx);
+    tree->Branch("vy", &datum->vy);
+    tree->Branch("vz", &datum->vz);
+    tree->Branch("vpd_vz", &datum->vpd_vz);
 
-    
     // Jet Momentum Components
-    // tree->Branch("jet_momentum", &datum->jet_momentum);
-    // tree->Branch("jet_momentum_median_subtracted", &datum->jet_momentum_medium_subtracted);
-    // tree->Branch("jet_hardcore_momentum", &datum->jet_hardcore_momentum);
+    tree->Branch("jet_momentum", &datum->jet_momentum);
+    tree->Branch("jet_momentum_median_subtracted", &datum->jet_momentum_medium_subtracted);
+    tree->Branch("jet_hardcore_momentum", &datum->jet_hardcore_momentum);
 
     // Jet Shape Components
-    // tree->Branch("jet_z", &datum->jet_z);
+    tree->Branch("jet_z", &datum->jet_z);
     
     // Collision information
     tree->Branch("event_plane_east", &datum->event_plane_east);
     tree->Branch("event_plane_west", &datum->event_plane_west);
     tree->Branch("event_plane_full", &datum->event_plane_full);
-    // tree->Branch("vx", &datum->vx);
-    // tree->Branch("vy", &datum->vy);
-    // tree->Branch("vz", &datum->vz);
+    tree->Branch("centrality16", &datum->centrality);
+
+    // System
+    tree->Branch("tofmult", &datum->tofmult);
+    tree->Branch("refmult3", &datum->refmult3);
+    tree->Branch("trigger_id", &datum->trigger_id);
+    tree->Branch("run_number", &datum->run_number);
+    tree->Branch("bbc_east_rate", &datum->bbc_east_rate);
+    tree->Branch("bbc_west_rate", &datum->bbc_west_rate);
 }
 
 
@@ -91,9 +105,10 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     qa_hist->vr = new TH2D("vr", "vr", 103,  -0.51, 0.51, 103, -0.51, 0.51);
 
     // System
-    qa_hist->refmult3 = new TH1I("refmult3", "Ref Mult 3", 100, 0, 1000);
-    qa_hist->tofmult = new TH1I("tofmult", "Tof Mult", 100, 0, 1000);
-    qa_hist->bbc_rate = new TH2F("bbc_rate", "BBC Rate", 100, 0, 5000, 100, 0, 5000);
+    qa_hist->refmult3 = new TH1I("refmult3", "Ref Mult 3", 100, 0, 800);
+    qa_hist->tofmult = new TH1I("tofmult", "Tof Mult", 100, 0, 1500);
+    qa_hist->bbc_rate = new TH2F("bbc_rate", "BBC Rate", 100, 70000, 80000, 100, 70000, 80000);
+    qa_hist->centrailty = new TH1I("centrality", "centrality", 18, -1, 16);
 
     // Track info
     qa_hist->track_momentum = new TH1D("track_momentum", "Track Momentum", 100, 0, 32);
@@ -101,13 +116,13 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     qa_hist->track_phi = new TH1D("track_phi", "Track Phi", 50, 0, TMath::TwoPi());
 
     // Event plane
-    ep_hist->east_uncorrected = new TH1D("east_uncorrected", "east_uncorrected", 30, 0, TMath::TwoPi());
-    ep_hist->west_uncorrected = new TH1D("west_uncorrected", "west_uncorrected", 30, 0, TMath::TwoPi());
-    ep_hist->east_phi_corrected = new TH1D("east_phi_corrected", "east_phi_corrected", 30, 0, TMath::TwoPi());
-    ep_hist->west_phi_corrected = new TH1D("west_phi_corrected", "west_phi_corrected", 30, 0, TMath::TwoPi());
-    ep_hist->east_phi_psi_corrected = new TH1D("east_phi_psi_corrected", "east_phi_psi_corrected", 30, 0, TMath::TwoPi());
-    ep_hist->west_phi_psi_corrected = new TH1D("west_phi_psi_corrected", "west_phi_psi_corrected", 30, 0, TMath::TwoPi());
-    ep_hist->ep_correlation = new TH2D("ep_correlation", "EP Correlation", 30, 0, TMath::TwoPi(), 30, 0, TMath::TwoPi());
+    ep_hist->east_uncorrected = new TH1D("east_uncorrected", "east_uncorrected", 30, 0, TMath::Pi());
+    ep_hist->west_uncorrected = new TH1D("west_uncorrected", "west_uncorrected", 30, 0, TMath::Pi());
+    ep_hist->east_phi_corrected = new TH1D("east_phi_corrected", "east_phi_corrected", 30, 0, TMath::Pi());
+    ep_hist->west_phi_corrected = new TH1D("west_phi_corrected", "west_phi_corrected", 30, 0, TMath::Pi());
+    ep_hist->east_phi_psi_corrected = new TH1D("east_phi_psi_corrected", "east_phi_psi_corrected", 30, 0, TMath::Pi());
+    ep_hist->west_phi_psi_corrected = new TH1D("west_phi_psi_corrected", "west_phi_psi_corrected", 30, 0, TMath::Pi());
+    ep_hist->ep_correlation = new TH2D("ep_correlation", "EP Correlation", 30, 0, TMath::Pi(), 30, 0, TMath::Pi());
 }
 
 void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outfile) {
@@ -124,6 +139,9 @@ void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outf
     qa_hist->tofmult->Write();
     qa_hist->bbc_rate->SetDirectory(outfile);
     qa_hist->bbc_rate->Write();
+    qa_hist->centrailty->SetDirectory(outfile);
+    qa_hist->centrailty->Write();
+
 
     // Track info
     qa_hist->track_momentum->SetDirectory(outfile);

@@ -96,7 +96,7 @@ int main(int argc, char **argv) {
     // }
     // filelist.close();
     
-    // ROOT::EnableImplicitMT();
+    ROOT::EnableImplicitMT();
 
     // PARAMETERS
     int DEBUG_LEVEL = 0;
@@ -147,7 +147,7 @@ int main(int argc, char **argv) {
     
 
     // Set up event plane finding
-    StEpdEpFinder *ep_finder = new StEpdEpFinder(1, "StEpdEpFinderCorrectionHistograms_OUTPUT.root", "StEpdEpFinderCorrectionHistograms_INPUT.root");
+    StEpdEpFinder *ep_finder = new StEpdEpFinder(17, "StEpdEpFinderCorrectionHistograms_OUTPUT.root", "StEpdEpFinderCorrectionHistograms_INPUT.root");
     ep_finder->SetnMipThreshold(0.3);
     ep_finder->SetMaxTileWeight(3);
     ep_finder->SetEpdHitFormat(2); // for StPicoDst
@@ -165,6 +165,10 @@ int main(int argc, char **argv) {
         }
 
         StPicoEvent *event = reader->picoDst()->event();
+
+        if (reader->centrality16() == -1) { // skip runs we can't determine centrality for
+            continue;
+        }
 
         // Event Info
         datum.trigger_id = event->triggerIds();
@@ -185,11 +189,13 @@ int main(int argc, char **argv) {
         datum.bbc_east_rate = event->bbcEastRate();
         datum.bbc_west_rate = event->bbcWestRate();
         qa_hist.bbc_rate->Fill(datum.bbc_east_rate, datum.bbc_west_rate);
+        datum.centrality = reader->centrality16();
+        qa_hist.centrailty->Fill(datum.centrality);
 
         
         // Find event plane
         TClonesArray *epd_hits = reader->picoDst()->picoArray(8);
-        StEpdEpInfo ep_info = ep_finder->Results(epd_hits, primary_vertex, 0);
+        StEpdEpInfo ep_info = ep_finder->Results(epd_hits, primary_vertex, datum.centrality);
         ep_hist.east_uncorrected->Fill(ep_info.EastRawPsi(2));
         ep_hist.west_uncorrected->Fill(ep_info.WestRawPsi(2));
         ep_hist.east_phi_corrected->Fill(ep_info.EastPhiWeightedPsi(2));
@@ -256,7 +262,8 @@ int main(int argc, char **argv) {
                         datum.jet_phi = jet.phi();
                         
                         jet_data->Fill();
-                        std::cout << "filling..." << std::endl;
+                        std::cout << "filling " << processed_events << "..." << std::endl;
+                        break;
                     }
                 }
             }

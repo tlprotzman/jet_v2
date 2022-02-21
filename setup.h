@@ -18,7 +18,7 @@ typedef struct {
     double vpd_vz;                  // check against vz, for pileup
     unsigned short tofmult;         // for pileup cut
     int refmult3;
-    // centrality_t centrality;
+    int centrality;
     int run_number;
     float bbc_east_rate;
     float bbc_west_rate;
@@ -33,7 +33,7 @@ typedef struct {
     TH1 *track_eta;
     TH1 *track_phi;
     // Calo_t calo_data; // figure out later
-    // centrality_t centrailty;
+    TH1 *centrailty;
     TH1 *refmult3;
     TH1 *tofmult;
     TH2 *bbc_rate;
