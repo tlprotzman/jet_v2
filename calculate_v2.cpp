@@ -6,16 +6,18 @@ tlprotzman@gmail.com
 */
 
 #include "TROOT.h"
+#include "TCanvas.h"
+#include "TF1.h"
 #include "TFile.h"
-#include "TNamed.h"
 #include "TH1D.h"
 #include "TH2D.h"
-#include "TTree.h"
-#include "TMath.h"
-#include "TLegend.h"
-#include "TStyle.h"
-#include "TCanvas.h"
 #include "THStack.h"
+#include "TLatex.h"
+#include "TLegend.h"
+#include "TMath.h"
+#include "TNamed.h"
+#include "TStyle.h"
+#include "TTree.h"
 
 #include <iostream>
 #include <string>
@@ -35,32 +37,38 @@ void calculate_v2(std::string infile_path = "out.root") {
 
 
     // Set up needed branches
-    double event_plane_east, event_plane_west;
+    double event_plane_east, event_plane_west, event_plane_full;
     double jet_eta, jet_phi;
     double jet_momentum_corrected;
+    int centrality_class;
 
     event_tree->SetBranchAddress("event_plane_east", &event_plane_east);
     event_tree->SetBranchAddress("event_plane_west", &event_plane_west);
+    event_tree->SetBranchAddress("event_plane_full", &event_plane_full);
     event_tree->SetBranchAddress("jet_eta", &jet_eta);
     event_tree->SetBranchAddress("jet_phi", &jet_phi);
     event_tree->SetBranchAddress("jet_momentum_median_subtracted", &jet_momentum_corrected);
+    event_tree->SetBranchAddress("centrality16", &centrality_class);
 
     // Set up histograms
     TH1D *phi_spectra = new TH1D("phi_spectra", "Phi Spectra", 100, 0, 3.5);
-    TH1D *phi_relative = new TH1D("phi_relative", "Phi relative to ep", 30, -4, 4);
+    TH1D *phi_relative = new TH1D("phi_relative", "Phi relative to ep", 30, 0, 2);
     TH2D *phi_ep = new TH2D("phi_ep", "Phi vs EP", 100, 0, 3.5, 100, 0, 3.5);
-    TH1D *event_plane[6] = {new TH1D("event_plane_east", "event_plane_east", 30, 0, TMath::TwoPi()),
-                            new TH1D("event_plane_west", "event_plane_west", 30, 0, TMath::TwoPi()),
-                            new TH1D("event_plane_east_corrected", "event_plane_east_corrected", 30, 0, TMath::TwoPi()),
-                            new TH1D("event_plane_west_corrected", "event_plane_west_corrected", 30, 0, TMath::TwoPi()),
-                            new TH1D("event_plane_average", "event_plane_average", 30, 0, TMath::TwoPi()),
+    TH1D *event_plane[6] = {new TH1D("event_plane_east", "event_plane_east", 30, 0, TMath::Pi()),
+                            new TH1D("event_plane_west", "event_plane_west", 30, 0, TMath::Pi()),
+                            new TH1D("event_plane_east_corrected", "event_plane_east_corrected", 30, 0, TMath::Pi()),
+                            new TH1D("event_plane_west_corrected", "event_plane_west_corrected", 30, 0, TMath::Pi()),
+                            new TH1D("event_plane_average", "event_plane_average", 30, 0, TMath::Pi()),
                             new TH1D("event_plane_difference", "event_plane_difference", 30, -1 * TMath::Pi(), TMath::Pi())};
 
-    TH2D *ep = new TH2D("ep", "ep", 30, 0, TMath::TwoPi(), 30, -0, TMath::TwoPi());
-    TH2D *ep_corrected = new TH2D("ep_corrected", "ep_corrected", 30, 0, TMath::TwoPi(), 30, -0, TMath::TwoPi());
+    TH2D *ep = new TH2D("ep", "ep", 30, 0, TMath::Pi(), 30, -0, TMath::Pi());
+    TH2D *ep_corrected = new TH2D("ep_corrected", "ep_corrected", 30, 0, TMath::Pi(), 30, -0, TMath::Pi());
 
     for (Long64_t n = 0; n < event_tree->GetEntries(); n++) {
         event_tree->GetEvent(n);
+        if (centrality_class <= 0 || centrality_class >= 16) {  // accept between 40-20% central
+            continue;
+        }
         
         float average_ep = 0.5 * (event_plane_east + event_plane_west);
 
@@ -77,15 +85,18 @@ void calculate_v2(std::string infile_path = "out.root") {
 
         // std::cout << jet_phi << std::endl;
         if (jet_phi > TMath::Pi()) {
-            jet_phi = jet_phi - 2 * (jet_phi - TMath::Pi());
+            jet_phi -= TMath::Pi();
         }
 
-        phi_ep->Fill(jet_phi, event_plane_west);
+        phi_ep->Fill(jet_phi, event_plane_full);
 
         // jet_phi -= TMath::Pi() / 2.;
         phi_spectra->Fill(jet_phi);
 
-        double relative = abs(jet_phi - event_plane_west);
+        double relative = abs(jet_phi - event_plane_full);
+        if (relative > TMath::PiOver2()) {
+            relative -= TMath::PiOver2();
+        }
         // std::cout << relative << std::endl;
         // if (relative > TMath::PiOver2()) {
         //     relative -= TMath::PiOver2();
@@ -116,10 +127,15 @@ void calculate_v2(std::string infile_path = "out.root") {
         ep_corrected->Fill(event_plane_east, event_plane_west, (1 / correction_factor[0][east_bin]) * (1 / correction_factor[1][west_bin]));
     }
 
+    // Fitting histogram
+    TF1 *v2_fit = new TF1("v2", "[0] + [1] * 2 * cos(2*x)", 0, TMath::PiOver2());
+    v2_fit->SetParameters(0);
+    v2_fit->SetParNames("offset", "v2");
+    phi_relative->Scale(1 / phi_relative->GetBinContent(1));
+    phi_relative->Fit("v2");
 
     // Drawing histograms, probably move later?
     draw_anything(phi_spectra, "plots/phi_spectra.png");
-    draw_anything(phi_relative, "plots/phi_relative.png");
     draw_anything(event_plane[0], "plots/ep_east.png");
     draw_anything(event_plane[1], "plots/ep_west.png");
     event_plane[2]->Scale(1 / event_plane[2]->GetEntries());
@@ -135,7 +151,7 @@ void calculate_v2(std::string infile_path = "out.root") {
     draw_anything(phi_ep, "plots/phi_ep.png", "colz");
     ep_corrected->Scale(1 / ep_corrected->GetEntries());
     draw_anything(ep_corrected, "plots/EP_Corrected.png", "colz");
-    return;
+    // return;
 
     TCanvas c("", "", 1000, 1000);
     
@@ -153,4 +169,14 @@ void calculate_v2(std::string infile_path = "out.root") {
     legend->Draw();
     c.Print("plots/stacked.png");
 
+
+    gPad->SetMargin(0.14, 0.9, 0.9, 0.9);
+    phi_relative->Draw("e");
+    phi_relative->SetXTitle("#phi");
+    phi_relative->SetYTitle("#frac{dN}{d#Delta#phi}");
+    phi_relative->GetFunction("v2")->DrawF1(0, TMath::PiOver2(), "C same");
+    TLatex formula = TLatex(1.2, 1, Form("%.3f + %.3f cos(2#phi)", phi_relative->GetFunction("v2")->GetParameter("offset"), phi_relative->GetFunction("v2")->GetParameter("v2")));
+    formula.SetTextSize(0.03);
+    formula.Draw();
+    c.Print("plots/phi_relative.png");
 }
