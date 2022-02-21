@@ -41,13 +41,14 @@ void calculate_v2(std::string infile_path = "out.root") {
 
     event_tree->SetBranchAddress("event_plane_east", &event_plane_east);
     event_tree->SetBranchAddress("event_plane_west", &event_plane_west);
-    // event_tree->SetBranchAddress("jet_eta", &jet_eta);
-    // event_tree->SetBranchAddress("jet_phi", &jet_phi);
-    // event_tree->SetBranchAddress("jet_momentum_median_subtracted", &jet_momentum_corrected);
+    event_tree->SetBranchAddress("jet_eta", &jet_eta);
+    event_tree->SetBranchAddress("jet_phi", &jet_phi);
+    event_tree->SetBranchAddress("jet_momentum_median_subtracted", &jet_momentum_corrected);
 
     // Set up histograms
-    TH1D *phi_spectra = new TH1D("phi_spectra", "Phi Spectra", 100, -1, 7);
-    TH1D *phi_relative = new TH1D("phi_relative", "Phi relative to ep", 30, 0, TMath::TwoPi());
+    TH1D *phi_spectra = new TH1D("phi_spectra", "Phi Spectra", 100, 0, 3.5);
+    TH1D *phi_relative = new TH1D("phi_relative", "Phi relative to ep", 30, -4, 4);
+    TH2D *phi_ep = new TH2D("phi_ep", "Phi vs EP", 100, 0, 3.5, 100, 0, 3.5);
     TH1D *event_plane[6] = {new TH1D("event_plane_east", "event_plane_east", 30, 0, TMath::TwoPi()),
                             new TH1D("event_plane_west", "event_plane_west", 30, 0, TMath::TwoPi()),
                             new TH1D("event_plane_east_corrected", "event_plane_east_corrected", 30, 0, TMath::TwoPi()),
@@ -74,12 +75,21 @@ void calculate_v2(std::string infile_path = "out.root") {
         event_plane[5]->Fill(event_plane_east - event_plane_west);
         ep->Fill(event_plane_east, event_plane_west);
 
+        // std::cout << jet_phi << std::endl;
+        if (jet_phi > TMath::Pi()) {
+            jet_phi = jet_phi - 2 * (jet_phi - TMath::Pi());
+        }
+
+        phi_ep->Fill(jet_phi, event_plane_west);
+
+        // jet_phi -= TMath::Pi() / 2.;
         phi_spectra->Fill(jet_phi);
 
-        double relative = jet_phi - event_plane_west;
-        if (relative < 0) {
-            relative += TMath::TwoPi();
-        }
+        double relative = abs(jet_phi - event_plane_west);
+        // std::cout << relative << std::endl;
+        // if (relative > TMath::PiOver2()) {
+        //     relative -= TMath::PiOver2();
+        // }
         phi_relative->Fill(relative);
     }
 
@@ -108,22 +118,23 @@ void calculate_v2(std::string infile_path = "out.root") {
 
 
     // Drawing histograms, probably move later?
-    // draw_anything(phi_spectra, "phi_spectra.png");
-    // draw_anything(phi_relative, "phi_relative.png");
-    draw_anything(event_plane[0], "ep_east.png");
-    draw_anything(event_plane[1], "ep_west.png");
+    draw_anything(phi_spectra, "plots/phi_spectra.png");
+    draw_anything(phi_relative, "plots/phi_relative.png");
+    draw_anything(event_plane[0], "plots/ep_east.png");
+    draw_anything(event_plane[1], "plots/ep_west.png");
     event_plane[2]->Scale(1 / event_plane[2]->GetEntries());
     event_plane[3]->Scale(1 / event_plane[3]->GetEntries());
     event_plane[2]->SetMinimum(0);
     event_plane[3]->SetMinimum(0);
-    draw_anything(event_plane[2], "ep_east_corrected.png", "hist norm");
-    draw_anything(event_plane[3], "ep_west_corrected.png", "hist norm");
-    draw_anything(event_plane[4], "ep_average.png");
-    draw_anything(event_plane[5], "ep_diff.png");
+    draw_anything(event_plane[2], "plots/ep_east_corrected.png", "hist norm");
+    draw_anything(event_plane[3], "plots/ep_west_corrected.png", "hist norm");
+    draw_anything(event_plane[4], "plots/ep_average.png");
+    draw_anything(event_plane[5], "plots/ep_diff.png");
     gStyle->SetOptStat(0);
-    draw_anything(ep, "EP.png", "colz");
+    draw_anything(ep, "plots/EP.png", "colz");
+    draw_anything(phi_ep, "plots/phi_ep.png", "colz");
     ep_corrected->Scale(1 / ep_corrected->GetEntries());
-    draw_anything(ep_corrected, "EP_Corrected.png", "colz");
+    draw_anything(ep_corrected, "plots/EP_Corrected.png", "colz");
     return;
 
     TCanvas c("", "", 1000, 1000);
@@ -140,6 +151,6 @@ void calculate_v2(std::string infile_path = "out.root") {
 
     stack->Draw("nostack E");
     legend->Draw();
-    c.Print("stacked.png");
+    c.Print("plots/stacked.png");
 
 }
