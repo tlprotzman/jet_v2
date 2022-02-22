@@ -79,6 +79,8 @@ void setup_tree(TTree *tree, jet_tree_data *datum) {
     tree->Branch("jet_momentum", &datum->jet_momentum);
     tree->Branch("jet_momentum_median_subtracted", &datum->jet_momentum_medium_subtracted);
     tree->Branch("jet_hardcore_momentum", &datum->jet_hardcore_momentum);
+    tree->Branch("hardcore_jets", &datum->hardcore_jets);
+    tree->Branch("all_jets", &datum->all_jets);
 
     // Jet Shape Components
     tree->Branch("jet_z", &datum->jet_z);
