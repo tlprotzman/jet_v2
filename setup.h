@@ -5,6 +5,13 @@
 #include "TH1.h"
 #include "TH2.h"
 #include "TFile.h"
+
+#include <vector>
+
+#include "fastjet/PseudoJet.hh"
+#include "fastjet/tools/JetMedianBackgroundEstimator.hh"
+
+
 #include "jetreader/reader/reader.h"
 
 /*
@@ -31,8 +38,17 @@
 
 // Tree variables
 typedef struct {
+    double pt;
+    double eta, phi;
+    double momentum, subtracted_momentum;
+    double z;
+} single_jet_data;
+
+typedef struct {
     double jet_eta, jet_phi;
     double jet_hardcore_momentum, jet_momentum, jet_momentum_medium_subtracted;
+    std::vector<single_jet_data> hardcore_jets;
+    std::vector<single_jet_data> all_jets;
     double jet_z;
     double vx, vy, vz;
     double event_plane_east, event_plane_west, event_plane_full;

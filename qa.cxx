@@ -48,6 +48,8 @@
 // My includes
 #include "setup.h"
 
+// #pragma link C++ class std::vector<fastjet::PseudoJet>+;
+
 
 int main(int argc, char **argv) {
     // Build filelist
@@ -114,8 +116,11 @@ int main(int argc, char **argv) {
     // INITIALIZATION
     jetreader::Reader *reader = new jetreader::Reader(picos_to_read);
     setup_cuts(reader);
-
     
+    // Trees
+    TTree *jet_data = new TTree("jet_data", "Jet Data");
+    jet_tree_data datum;
+    setup_tree(jet_data, &datum);    
     
     // Set up jet finding
     double jet_r = 0.3;
@@ -128,22 +133,18 @@ int main(int argc, char **argv) {
     fastjet::JetDefinition jet_subtraction_jet_def(fastjet::kt_algorithm, jet_r);
 
     fastjet::Selector jet_selector = fastjet::SelectorAbsRapMax(1) * (!fastjet::SelectorNHardest(2));
-    fastjet::JetMedianBackgroundEstimator jet_background_estimator(jet_selector, jet_subtraction_jet_def, jet_area_background);
+    fastjet::JetMedianBackgroundEstimator jet_background_estimator = fastjet::JetMedianBackgroundEstimator(jet_selector, jet_subtraction_jet_def, jet_area_background);
 
-    fastjet::Subtractor jet_backgorund_subtractor(&jet_background_estimator);
+    fastjet::Subtractor jet_background_subtractor(&jet_background_estimator);
 
-    jet_backgorund_subtractor.set_use_rho_m(true);
-    jet_backgorund_subtractor.set_safe_mass(true);
+    jet_background_subtractor.set_use_rho_m(true);
+    jet_background_subtractor.set_safe_mass(true);
 
     // Histograms
     qa_histograms qa_hist;
     ep_histograms ep_hist;
     setup_histograms(&qa_hist, &ep_hist);
 
-    // Trees
-    TTree *jet_data = new TTree("jet_data", "Jet Data");
-    jet_tree_data datum;
-    setup_tree(jet_data, &datum);    
     
 
     // Set up event plane finding
@@ -236,38 +237,17 @@ int main(int argc, char **argv) {
         fastjet::ClusterSequenceArea cs = fastjet::ClusterSequenceArea(tracks, jet_def, jet_area);
 
         std::vector<fastjet::PseudoJet> hardcore_jets = fastjet::sorted_by_pt(hc_cs.inclusive_jets());
-        std::vector<fastjet::PseudoJet> jets;
-        if (hardcore_jets.size() > 0) {
-            jets = fastjet::sorted_by_pt(cs.inclusive_jets()); // TODO inclusive vs exclusive jets
+        std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
+        for (fastjet::PseudoJet jet : hardcore_jets) {
+            single_jet_data jet_datum;
+            jet_datum.eta = jet.eta();
+            jet_datum.phi = jet.phi();
+            jet_datum.pt = jet.pt();
+            
         }
 
         jet_background_estimator.set_particles(tracks);
 
-        for (fastjet::PseudoJet hc_jet : hardcore_jets) {
-            datum.jet_hardcore_momentum = hc_jet.pt();
-            for (fastjet::PseudoJet jet : jets) {   // hardcore jet matching
-                if (hc_jet.squared_distance(jet) < 0.3){
-                    double max_pt = 0;
-                    for (auto constituent : jet.constituents()) {
-                        if (constituent.pt() > max_pt) {
-                            max_pt = constituent.pt();
-                        }
-                    }
-                    datum.jet_z = max_pt / jet.pt();
-                    if (jet.pt() > 20 && max_pt / jet.pt() < 0.85){
-                        datum.jet_momentum = jet.pt();
-                        datum.jet_momentum_medium_subtracted = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-
-                        datum.jet_eta = jet.eta();
-                        datum.jet_phi = jet.phi();
-                        
-                        jet_data->Fill();
-                        std::cout << "filling " << processed_events << "..." << std::endl;
-                        break;
-                    }
-                }
-            }
-        }
     }
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();
