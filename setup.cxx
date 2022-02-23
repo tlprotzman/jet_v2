@@ -98,6 +98,39 @@ void setup_tree(TTree *tree, jet_tree_data *datum) {
     tree->Branch("bbc_west_rate", &datum->bbc_west_rate);
 }
 
+// There must be a good way to semi-automatically generate this list...
+void read_tree(TTree *tree, jet_tree_data *datum) {
+    // Jet Spatial Components
+    tree->SetBranchAddress("jet_eta", &datum->jet_eta);
+    tree->SetBranchAddress("jet_phi", &datum->jet_phi);
+    tree->SetBranchAddress("vx", &datum->vx);
+    tree->SetBranchAddress("vy", &datum->vy);
+    tree->SetBranchAddress("vz", &datum->vz);
+    tree->SetBranchAddress("vpd_vz", &datum->vpd_vz);
+
+    // Jet Momentum Components
+    tree->SetBranchAddress("jet_momentum", &datum->jet_momentum);
+    tree->SetBranchAddress("jet_momentum_median_subtracted", &datum->jet_momentum_medium_subtracted);
+    tree->SetBranchAddress("jet_hardcore_momentum", &datum->jet_hardcore_momentum);
+
+    // Jet Shape Components
+    tree->SetBranchAddress("jet_z", &datum->jet_z);
+    
+    // Collision information
+    tree->SetBranchAddress("event_plane_east", &datum->event_plane_east);
+    tree->SetBranchAddress("event_plane_west", &datum->event_plane_west);
+    tree->SetBranchAddress("event_plane_full", &datum->event_plane_full);
+    tree->SetBranchAddress("centrality16", &datum->centrality);
+
+    // System
+    tree->SetBranchAddress("tofmult", &datum->tofmult);
+    tree->SetBranchAddress("refmult3", &datum->refmult3);
+    tree->SetBranchAddress("trigger_id", &datum->trigger_id);   // todo make this branch work, though it does seem to?
+    tree->SetBranchAddress("run_number", &datum->run_number);
+    tree->SetBranchAddress("bbc_east_rate", &datum->bbc_east_rate);
+    tree->SetBranchAddress("bbc_west_rate", &datum->bbc_west_rate);
+}
+
 
 void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     // Vertex info

@@ -1,3 +1,4 @@
+# This is probably painful for anyone who can actually write makefiles
 CXXFLAGS  = -std=c++17
 # CXXFLAGS += $(shell root-config --cflags)
 CXXFLAGS += -fPIC
@@ -25,12 +26,25 @@ LIBS += -ljetreader
 LIBS += -lStEpdUtil
 LIBS += -lNetx
 
-objects = qa.o setup.o
+analysis_object_list = qa.o setup.o
+post_object_list = qa_histograms.o setup.o draw_histogram.o
 
-%.o: %.cxx
+analysis_objects = $(analysis_object_list:%.o=build/%.o)
+post_objects = $(post_object_list:%.o=build/%.o)
+
+all: qa post
+
+build/%.o: %.cxx 
 	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) $< -o $@
 
-qa.out: $(objects)
-	$(CXX) $(LDFLAGS) $(LIBPATH) $(objects) $(LIBS) -o qa.out
+qa: $(analysis_objects)
+	$(CXX) $(LDFLAGS) $(LIBPATH) $(analysis_objects) $(LIBS) -o qa
 
-all: qa.out
+post: $(post_objects)
+	$(CXX) $(LDFLAGS) $(LIBPATH) $(post_objects) $(LIBS) -o post
+
+clean:
+	rm -f build/*
+	rm -f qa
+	rm -f post
+

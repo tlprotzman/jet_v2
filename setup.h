@@ -73,6 +73,7 @@ typedef struct {
 
 void setup_cuts(jetreader::Reader *reader);
 void setup_tree(TTree *tree, jet_tree_data *datum);
+void read_tree(TTree *tree, jet_tree_data *datum);
 void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist);
 void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outfile);
 
