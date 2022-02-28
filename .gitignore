@@ -7,3 +7,7 @@ StEpdUtil
 *.list
 *.png
 from_rcf
+qa
+post
+dict.cxx
+dict_rdict.pcm

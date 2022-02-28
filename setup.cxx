@@ -67,24 +67,20 @@ void setup_cuts(jetreader::Reader *reader) {
 }
 
 void setup_tree(TTree *tree, jet_tree_data *datum) {
-    // Jet Spatial Components
-    tree->Branch("jet_eta", &datum->jet_eta);
-    tree->Branch("jet_phi", &datum->jet_phi);
+    // Initialize vectors
+    datum->hardcore_jets = new std::vector<single_jet_data>();
+    datum->all_jets = new std::vector<single_jet_data>();
+
+    // Vertex Spatial Components
     tree->Branch("vx", &datum->vx);
     tree->Branch("vy", &datum->vy);
     tree->Branch("vz", &datum->vz);
     tree->Branch("vpd_vz", &datum->vpd_vz);
 
     // Jet Momentum Components
-    tree->Branch("jet_momentum", &datum->jet_momentum);
-    tree->Branch("jet_momentum_median_subtracted", &datum->jet_momentum_medium_subtracted);
-    tree->Branch("jet_hardcore_momentum", &datum->jet_hardcore_momentum);
     tree->Branch("hardcore_jets", &datum->hardcore_jets);
     tree->Branch("all_jets", &datum->all_jets);
 
-    // Jet Shape Components
-    tree->Branch("jet_z", &datum->jet_z);
-    
     // Collision information
     tree->Branch("event_plane_east", &datum->event_plane_east);
     tree->Branch("event_plane_west", &datum->event_plane_west);

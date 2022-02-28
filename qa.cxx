@@ -47,6 +47,7 @@
 
 // My includes
 #include "setup.h"
+#include "dict.h"
 
 // #pragma link C++ class std::vector<fastjet::PseudoJet>+;
 
@@ -238,16 +239,46 @@ int main(int argc, char **argv) {
 
         std::vector<fastjet::PseudoJet> hardcore_jets = fastjet::sorted_by_pt(hc_cs.inclusive_jets());
         std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
-        for (fastjet::PseudoJet jet : hardcore_jets) {
-            single_jet_data jet_datum;
-            jet_datum.eta = jet.eta();
-            jet_datum.phi = jet.phi();
-            jet_datum.pt = jet.pt();
-            
+        
+        jet_background_estimator.set_particles(tracks);
+        
+        for (fastjet::PseudoJet jet : hardcore_jets) {            
+            single_jet_data jet_info;
+            jet_info.phi = jet.phi();
+            jet_info.eta = jet.eta();
+            jet_info.pt = jet.pt();
+            jet_info.subtracted_momentum = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
+            jet_info.e = jet.E();
+            jet_info.num_constituents = jet.constituents().size();
+            double max_pt = 0;
+            for (auto constituent : jet.constituents()) {
+                max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
+            }
+            jet_info.z = max_pt / jet.pt();
+            datum.hardcore_jets->push_back(jet_info);
         }
 
-        jet_background_estimator.set_particles(tracks);
+        for (fastjet::PseudoJet jet : jets) {            
+            single_jet_data jet_info;
+            jet_info.phi = jet.phi();
+            jet_info.eta = jet.eta();
+            jet_info.pt = jet.pt();
+            jet_info.subtracted_momentum = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
+            jet_info.e = jet.E();
+            jet_info.num_constituents = jet.constituents().size();
+            double max_pt = 0;
+            for (auto constituent : jet.constituents()) {
+                max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
+            }
+            jet_info.z = max_pt / jet.pt();
+            datum.all_jets->push_back(jet_info);
+        }
 
+        
+
+    
+        jet_data->Fill();
+        
     }
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();

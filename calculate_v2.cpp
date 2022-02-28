@@ -192,8 +192,11 @@ void calculate_v2(std::string infile_path = "out.root") {
     v2_fit->DrawF1(-1 * TMath::PiOver2(), TMath::PiOver2(), "same");
     TLatex formula = TLatex();
     formula.SetTextSize(0.03);
-    formula.Draw();
-    formula.DrawLatexNDC(0.4, 0.8, Form("red: %.3f(1 + 2 * %.3f cos(2#phi))", phi_relative->GetFunction("v2")->GetParameter("offset"), phi_relative->GetFunction("v2")->GetParameter("v2")));
-    formula.DrawLatexNDC(0.4, 0.75, Form("blue: %.3f(1 + 2 * %.3f cos(2#phi))", phi_relative->GetFunction("v2")->GetParameter("offset"), calculated_v2 / events));
+    formula.DrawLatexNDC(0.45, 0.85, Form("Equation: Scale * (1 + 2v_{2} cos(2#phi))", phi_relative->GetFunction("v2")->GetParameter("offset"), phi_relative->GetFunction("v2")->GetParameter("v2")));
+    formula.DrawLatexNDC(0.45, 0.8, Form("red: %.1f(1 + 2 * %.3f cos(2#phi))", phi_relative->GetFunction("v2")->GetParameter("offset"), phi_relative->GetFunction("v2")->GetParameter("v2")));
+    formula.DrawLatexNDC(0.45, 0.75, Form("blue: %.1f(1 + 2 * %.3f cos(2#phi))", phi_relative->GetFunction("v2")->GetParameter("offset"), calculated_v2 / events));
+    
+    formula.DrawLatexNDC(0.2, 0.2, "Red: Fitted to data");
+    formula.DrawLatexNDC(0.2, 0.15, "Blue: v_{2}= #LTcos(2#Delta#phi)#GT");
     c.Print("plots/phi_relative.png");
 }
