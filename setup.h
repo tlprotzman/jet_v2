@@ -13,7 +13,6 @@
 
 
 #include "jetreader/reader/reader.h"
-#include "dict.h"
 
 /*
  Centrality binning:
@@ -42,8 +41,36 @@
 typedef struct {
     double jet_eta, jet_phi;
     double jet_hardcore_momentum, jet_momentum, jet_momentum_medium_subtracted;
-    std::vector<single_jet_data> *hardcore_jets;
-    std::vector<single_jet_data> *all_jets;
+    // std::vector<double> *hardcore_jets_pt;
+    // std::vector<double> *hardcore_jets_eta;
+    // std::vector<double> *hardcore_jets_phi;
+    // std::vector<double> *hardcore_jets_E;
+    // std::vector<double> *hardcore_jets_subtracted_pt;
+    // std::vector<double> *hardcore_jets_z;
+    // std::vector<size_t> *hardcore_jets_constituents;
+    // std::vector<double> *all_jets_pt;
+    // std::vector<double> *all_jets_eta;
+    // std::vector<double> *all_jets_phi;
+    // std::vector<double> *all_jets_E;
+    // std::vector<double> *all_jets_subtracted_pt;
+    // std::vector<double> *all_jets_z;
+    // std::vector<size_t> *all_jets_constituents;
+    UInt_t num_hardcore_jets, num_all_jets;
+    double* hardcore_jets_pt;
+    double* hardcore_jets_eta;
+    double* hardcore_jets_phi;
+    double* hardcore_jets_E;
+    double* hardcore_jets_subtracted_pt;
+    double* hardcore_jets_z;
+    UInt_t* hardcore_jets_constituents;
+    double* all_jets_pt;
+    double* all_jets_eta;
+    double* all_jets_phi;
+    double* all_jets_E;
+    double* all_jets_subtracted_pt;
+    double* all_jets_z;
+    UInt_t* all_jets_constituents;
+
     double jet_z;
     double vx, vy, vz;
     double event_plane_east, event_plane_west, event_plane_full;
@@ -85,7 +112,10 @@ typedef struct {
 void setup_cuts(jetreader::Reader *reader);
 void setup_tree(TTree *tree, jet_tree_data *datum);
 void read_tree(TTree *tree, jet_tree_data *datum);
+void clear_vectors(jet_tree_data *datum);
 void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist);
 void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outfile);
+void cleanup(jet_tree_data *datum);
+
 
 #endif // SETUP_H

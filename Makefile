@@ -26,16 +26,13 @@ LIBS += -ljetreader
 LIBS += -lStEpdUtil
 LIBS += -lNetx
 
-analysis_object_list = qa.o setup.o dict.o
-post_object_list = qa_histograms.o setup.o draw_histogram.o dict.o
+analysis_object_list = qa.o setup.o
+post_object_list = qa_histograms.o setup.o draw_histogram.o
 
 analysis_objects = $(analysis_object_list:%.o=build/%.o)
 post_objects = $(post_object_list:%.o=build/%.o)
 
 all: qa post
-
-dict.cxx: dict.h
-	rootcint $(INCFLAGS) $(LIBPATH) $(LDFLAGS) -f dict.cxx -c dict.h
 
 build/%.o: %.cxx 
 	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) $< -o $@

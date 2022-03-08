@@ -47,7 +47,6 @@
 
 // My includes
 #include "setup.h"
-#include "dict.h"
 
 // #pragma link C++ class std::vector<fastjet::PseudoJet>+;
 
@@ -99,7 +98,7 @@ int main(int argc, char **argv) {
     // }
     // filelist.close();
     
-    ROOT::EnableImplicitMT();
+    // ROOT::EnableImplicitMT();
 
     // PARAMETERS
     int DEBUG_LEVEL = 0;
@@ -238,50 +237,57 @@ int main(int argc, char **argv) {
         fastjet::ClusterSequenceArea cs = fastjet::ClusterSequenceArea(tracks, jet_def, jet_area);
 
         std::vector<fastjet::PseudoJet> hardcore_jets = fastjet::sorted_by_pt(hc_cs.inclusive_jets());
-        std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cs.inclusive_jets());
+        std::vector<fastjet::PseudoJet> all_jets = fastjet::sorted_by_pt(cs.inclusive_jets());
         
         jet_background_estimator.set_particles(tracks);
         
-        for (fastjet::PseudoJet jet : hardcore_jets) {            
-            single_jet_data jet_info;
-            jet_info.phi = jet.phi();
-            jet_info.eta = jet.eta();
-            jet_info.pt = jet.pt();
-            jet_info.subtracted_momentum = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-            jet_info.e = jet.E();
-            jet_info.num_constituents = jet.constituents().size();
+        clear_vectors(&datum);
+        for (fastjet::PseudoJet jet : hardcore_jets) {  
+            // std::cout << "hardcore: " << jet.pt() << std::endl;          
+            datum.hardcore_jets_phi[datum.num_hardcore_jets] = jet.phi();
+            datum.hardcore_jets_eta[datum.num_hardcore_jets] = jet.eta();
+            datum.hardcore_jets_pt[datum.num_hardcore_jets] = jet.pt();
+            datum.hardcore_jets_E[datum.num_hardcore_jets] = jet.E();
+            // datum.hardcore_jets_constituents->push_back(jet.constituents().size());
+            // std::cout << jet.constituents().size() << std::endl;
+            // double max_pt = 0;
+            // for (auto constituent : jet.constituents()) {
+            //     max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
+            // }
+            // datum.hardcore_jets_z->push_back(max_pt / jet.pt());
+            datum.num_hardcore_jets++;
+        }
+
+        for (fastjet::PseudoJet jet : all_jets) {
+            if (jet.pt() < 1) {
+                break;
+            }
+            // std::cout << "all: " << jet.pt() << std::endl;          
+            datum.all_jets_phi[datum.num_all_jets] = jet.phi();
+            datum.all_jets_eta[datum.num_all_jets] = jet.eta();
+            datum.all_jets_pt[datum.num_all_jets] = jet.pt();
+            datum.all_jets_subtracted_pt[datum.num_all_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
+            datum.all_jets_E[datum.num_all_jets] = jet.E();
+            datum.all_jets_constituents[datum.num_all_jets] = jet.constituents().size();
+            if (jet.constituents().size() < 2) {
+                continue;
+            }
             double max_pt = 0;
             for (auto constituent : jet.constituents()) {
                 max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
             }
-            jet_info.z = max_pt / jet.pt();
-            datum.hardcore_jets->push_back(jet_info);
+            datum.all_jets_z[datum.num_all_jets] = max_pt / jet.pt();
+            datum.num_all_jets++;
+            // std::cout << max_pt / jet.pt() << std::endl;
         }
-
-        for (fastjet::PseudoJet jet : jets) {            
-            single_jet_data jet_info;
-            jet_info.phi = jet.phi();
-            jet_info.eta = jet.eta();
-            jet_info.pt = jet.pt();
-            jet_info.subtracted_momentum = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-            jet_info.e = jet.E();
-            jet_info.num_constituents = jet.constituents().size();
-            double max_pt = 0;
-            for (auto constituent : jet.constituents()) {
-                max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
-            }
-            jet_info.z = max_pt / jet.pt();
-            datum.all_jets->push_back(jet_info);
-        }
-
-        
-
-    
         jet_data->Fill();
+        // std::cout << "\n\n";
         
     }
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();
+
+    cleanup(&datum);
 
     // Write data to file
     TFile *outfile = new TFile(Form("%sout.root", jobid.c_str()), "RECREATE");
