@@ -70,6 +70,7 @@ typedef struct {
     double* all_jets_subtracted_pt;
     double* all_jets_z;
     UInt_t* all_jets_constituents;
+    int num_entries;
 
     double jet_z;
     double vx, vy, vz;

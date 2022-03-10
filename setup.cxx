@@ -10,7 +10,8 @@
 
 #include <string>
 
-int NUM_ENTRIES = 50;
+int NUM_ENTRIES = 10;
+
 
 void setup_cuts(jetreader::Reader *reader) {
     // Properties
@@ -70,6 +71,7 @@ void setup_cuts(jetreader::Reader *reader) {
 
 void setup_tree(TTree *tree, jet_tree_data *datum) {
     // Initialize vectors
+    datum->num_entries = NUM_ENTRIES;
     datum->hardcore_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
     datum->hardcore_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
     datum->hardcore_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
@@ -93,21 +95,21 @@ void setup_tree(TTree *tree, jet_tree_data *datum) {
 
     // Jet Components
     tree->Branch("hardcore_jets_num", &datum->num_hardcore_jets);
-    tree->Branch("hardcore_jets_pt", &datum->hardcore_jets_pt, "hardcore_jets_pt[hardcore_jets_num]/D");
-    tree->Branch("hardcore_jets_eta", &datum->hardcore_jets_eta, "hardcore_jets_eta[hardcore_jets_num]/D");
-    tree->Branch("hardcore_jets_phi", &datum->hardcore_jets_phi, "hardcore_jets_phi[hardcore_jets_num]/D");
-    tree->Branch("hardcore_jets_E", &datum->hardcore_jets_E, "hardcore_jets_E[hardcore_jets_num]/D");
-    // tree->Branch("hardcore_jets_subtracted_pt", &datum->hardcore_jets_subtracted_pt, "hardcore_jets_subtracted_pt[hardcore_jets_num]/D");
-    // tree->Branch("hardcore_jets_z", &datum->hardcore_jets_z, "hardcore_jets_z[hardcore_jets_num]/D");
-    // tree->Branch("hardcore_jets_constituents", &datum->hardcore_jets_constituents, "hardcore_jets_constituents[hardcore_jets_num]/D");
+    tree->Branch("hardcore_jets_pt", datum->hardcore_jets_pt, "hardcore_jets_pt[hardcore_jets_num]/D");
+    tree->Branch("hardcore_jets_eta", datum->hardcore_jets_eta, "hardcore_jets_eta[hardcore_jets_num]/D");
+    tree->Branch("hardcore_jets_phi", datum->hardcore_jets_phi, "hardcore_jets_phi[hardcore_jets_num]/D");
+    tree->Branch("hardcore_jets_E", datum->hardcore_jets_E, "hardcore_jets_E[hardcore_jets_num]/D");
+    // tree->Branch("hardcore_jets_subtracted_pt", datum->hardcore_jets_subtracted_pt, "hardcore_jets_subtracted_pt[hardcore_jets_num]/D");
+    // tree->Branch("hardcore_jets_z", datum->hardcore_jets_z, "hardcore_jets_z[hardcore_jets_num]/D");
+    // tree->Branch("hardcore_jets_constituents", datum->hardcore_jets_constituents, "hardcore_jets_constituents[hardcore_jets_num]/D");
     tree->Branch("all_jets_num", &datum->num_all_jets);
-    tree->Branch("all_jets_pt", &datum->all_jets_pt, "all_jets_pt[all_jets_num]/D");
-    tree->Branch("all_jets_eta", &datum->all_jets_eta, "all_jets_eta[all_jets_num]/D");
-    tree->Branch("all_jets_phi", &datum->all_jets_phi, "all_jets_phi[all_jets_num]/D");
-    tree->Branch("all_jets_E", &datum->all_jets_E, "all_jets_E[all_jets_num]/D");
-    tree->Branch("all_jets_subtracted_pt", &datum->all_jets_subtracted_pt, "all_jets_subtracted_pt[all_jets_num]/D");
-    tree->Branch("all_jets_z", &datum->all_jets_z, "all_jets_z[all_jets_num]/D");
-    // tree->Branch("all_jets_constituents", &datum->all_jets_constituents, "all_jets_constituents[all_jets_num]/D");
+    tree->Branch("all_jets_pt", datum->all_jets_pt, "all_jets_pt[all_jets_num]/D");
+    tree->Branch("all_jets_eta", datum->all_jets_eta, "all_jets_eta[all_jets_num]/D");
+    tree->Branch("all_jets_phi", datum->all_jets_phi, "all_jets_phi[all_jets_num]/D");
+    tree->Branch("all_jets_E", datum->all_jets_E, "all_jets_E[all_jets_num]/D");
+    tree->Branch("all_jets_subtracted_pt", datum->all_jets_subtracted_pt, "all_jets_subtracted_pt[all_jets_num]/D");
+    tree->Branch("all_jets_z", datum->all_jets_z, "all_jets_z[all_jets_num]/D");
+    tree->Branch("all_jets_constituents", datum->all_jets_constituents, "all_jets_constituents[all_jets_num]/i");
 
     // Collision information
     tree->Branch("event_plane_east", &datum->event_plane_east);

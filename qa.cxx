@@ -98,7 +98,7 @@ int main(int argc, char **argv) {
     // }
     // filelist.close();
     
-    // ROOT::EnableImplicitMT();
+    ROOT::EnableImplicitMT();
 
     // PARAMETERS
     int DEBUG_LEVEL = 0;
@@ -118,7 +118,9 @@ int main(int argc, char **argv) {
     setup_cuts(reader);
     
     // Trees
+    TFile *outfile = new TFile(Form("%sout.root", jobid.c_str()), "RECREATE");
     TTree *jet_data = new TTree("jet_data", "Jet Data");
+    jet_data->SetDirectory(outfile);
     jet_tree_data datum;
     setup_tree(jet_data, &datum);    
     
@@ -248,6 +250,7 @@ int main(int argc, char **argv) {
             datum.hardcore_jets_eta[datum.num_hardcore_jets] = jet.eta();
             datum.hardcore_jets_pt[datum.num_hardcore_jets] = jet.pt();
             datum.hardcore_jets_E[datum.num_hardcore_jets] = jet.E();
+            // std::cout << datum.num_hardcore_jets << "\t" << datum.hardcore_jets_pt[datum.num_hardcore_jets] << std::endl;
             // datum.hardcore_jets_constituents->push_back(jet.constituents().size());
             // std::cout << jet.constituents().size() << std::endl;
             // double max_pt = 0;
@@ -256,10 +259,20 @@ int main(int argc, char **argv) {
             // }
             // datum.hardcore_jets_z->push_back(max_pt / jet.pt());
             datum.num_hardcore_jets++;
+            if (datum.num_entries <= datum.num_hardcore_jets) {
+                break;
+            }
         }
 
         for (fastjet::PseudoJet jet : all_jets) {
             if (jet.pt() < 1) {
+                break;
+            }
+            if (jet.constituents().size() < 2) {
+                continue;
+            }
+            if (datum.num_entries <= datum.num_all_jets) {
+                // std::cout << "overflow" << std::endl;
                 break;
             }
             // std::cout << "all: " << jet.pt() << std::endl;          
@@ -269,32 +282,27 @@ int main(int argc, char **argv) {
             datum.all_jets_subtracted_pt[datum.num_all_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
             datum.all_jets_E[datum.num_all_jets] = jet.E();
             datum.all_jets_constituents[datum.num_all_jets] = jet.constituents().size();
-            if (jet.constituents().size() < 2) {
-                continue;
-            }
             double max_pt = 0;
             for (auto constituent : jet.constituents()) {
                 max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
             }
             datum.all_jets_z[datum.num_all_jets] = max_pt / jet.pt();
             datum.num_all_jets++;
-            // std::cout << max_pt / jet.pt() << std::endl;
         }
         jet_data->Fill();
-        // std::cout << "\n\n";
+        // std::cout << "filled? \n\n";
         
     }
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();
 
-    cleanup(&datum);
 
     // Write data to file
-    TFile *outfile = new TFile(Form("%sout.root", jobid.c_str()), "RECREATE");
-    jet_data->SetDirectory(outfile);
+    outfile->cd();
     jet_data->Write();
     save_histograms(&qa_hist, &ep_hist, outfile);
     outfile->Close();
-
+    // delete jet_data;
+    cleanup(&datum);
 }
 
