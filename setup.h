@@ -41,28 +41,12 @@
 typedef struct {
     double jet_eta, jet_phi;
     double jet_hardcore_momentum, jet_momentum, jet_momentum_medium_subtracted;
-    // std::vector<double> *hardcore_jets_pt;
-    // std::vector<double> *hardcore_jets_eta;
-    // std::vector<double> *hardcore_jets_phi;
-    // std::vector<double> *hardcore_jets_E;
-    // std::vector<double> *hardcore_jets_subtracted_pt;
-    // std::vector<double> *hardcore_jets_z;
-    // std::vector<size_t> *hardcore_jets_constituents;
-    // std::vector<double> *all_jets_pt;
-    // std::vector<double> *all_jets_eta;
-    // std::vector<double> *all_jets_phi;
-    // std::vector<double> *all_jets_E;
-    // std::vector<double> *all_jets_subtracted_pt;
-    // std::vector<double> *all_jets_z;
-    // std::vector<size_t> *all_jets_constituents;
     UInt_t num_hardcore_jets, num_all_jets;
     double* hardcore_jets_pt;
     double* hardcore_jets_eta;
     double* hardcore_jets_phi;
     double* hardcore_jets_E;
     double* hardcore_jets_subtracted_pt;
-    double* hardcore_jets_z;
-    UInt_t* hardcore_jets_constituents;
     double* all_jets_pt;
     double* all_jets_eta;
     double* all_jets_phi;
@@ -91,8 +75,10 @@ typedef struct {
     TH1 *vpd_vz;
     TH2 *vr;
     TH1 *track_momentum;
-    TH1 *track_eta;
-    TH1 *track_phi;
+    TH2 *track_loc;
+    TH1 *jet_pt_spectra;
+    TH1 *jet_subtracted_pt_spectra;
+    TH2 *jet_loc;
     // Calo_t calo_data; // figure out later
     TH1 *centrailty;
     TH1 *refmult3;

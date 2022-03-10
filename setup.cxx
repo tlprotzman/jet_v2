@@ -72,20 +72,18 @@ void setup_cuts(jetreader::Reader *reader) {
 void setup_tree(TTree *tree, jet_tree_data *datum) {
     // Initialize vectors
     datum->num_entries = NUM_ENTRIES;
-    datum->hardcore_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->hardcore_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->hardcore_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->hardcore_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->hardcore_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->hardcore_jets_z = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->hardcore_jets_constituents = (UInt_t*) malloc(NUM_ENTRIES * sizeof(UInt_t));//new std::vector<UInt_t>;
-    datum->all_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->all_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->all_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->all_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->all_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->all_jets_z = (double*) malloc(NUM_ENTRIES * sizeof(double));//new std::vector<double>;
-    datum->all_jets_constituents = (UInt_t*) malloc(NUM_ENTRIES * sizeof(UInt_t));//new std::vector<UInt_t>;
+    datum->hardcore_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_z = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_constituents = (UInt_t*) malloc(NUM_ENTRIES * sizeof(UInt_t));
 
     // Vertex Components
     tree->Branch("vx", &datum->vx);
@@ -99,9 +97,7 @@ void setup_tree(TTree *tree, jet_tree_data *datum) {
     tree->Branch("hardcore_jets_eta", datum->hardcore_jets_eta, "hardcore_jets_eta[hardcore_jets_num]/D");
     tree->Branch("hardcore_jets_phi", datum->hardcore_jets_phi, "hardcore_jets_phi[hardcore_jets_num]/D");
     tree->Branch("hardcore_jets_E", datum->hardcore_jets_E, "hardcore_jets_E[hardcore_jets_num]/D");
-    // tree->Branch("hardcore_jets_subtracted_pt", datum->hardcore_jets_subtracted_pt, "hardcore_jets_subtracted_pt[hardcore_jets_num]/D");
-    // tree->Branch("hardcore_jets_z", datum->hardcore_jets_z, "hardcore_jets_z[hardcore_jets_num]/D");
-    // tree->Branch("hardcore_jets_constituents", datum->hardcore_jets_constituents, "hardcore_jets_constituents[hardcore_jets_num]/D");
+    tree->Branch("hardcore_jets_subtracted_pt", datum->hardcore_jets_subtracted_pt, "hardcore_jets_subtracted_pt[hardcore_jets_num]/D");
     tree->Branch("all_jets_num", &datum->num_all_jets);
     tree->Branch("all_jets_pt", datum->all_jets_pt, "all_jets_pt[all_jets_num]/D");
     tree->Branch("all_jets_eta", datum->all_jets_eta, "all_jets_eta[all_jets_num]/D");
@@ -162,20 +158,6 @@ void read_tree(TTree *tree, jet_tree_data *datum) {
 void clear_vectors(jet_tree_data *datum) {
     datum->num_hardcore_jets = 0;
     datum->num_all_jets = 0;
-    // datum->hardcore_jets_pt->clear();
-    // datum->hardcore_jets_eta->clear();
-    // datum->hardcore_jets_phi->clear();
-    // datum->hardcore_jets_E->clear();
-    // datum->hardcore_jets_subtracted_pt->clear();
-    // datum->hardcore_jets_z->clear();
-    // datum->hardcore_jets_constituents->clear();
-    // datum->all_jets_pt->clear();
-    // datum->all_jets_eta->clear();
-    // datum->all_jets_phi->clear();
-    // datum->all_jets_E->clear();
-    // datum->all_jets_subtracted_pt->clear();
-    // datum->all_jets_z->clear();
-    // datum->all_jets_constituents->clear();
 }
 
 
@@ -192,8 +174,12 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
 
     // Track info
     qa_hist->track_momentum = new TH1D("track_momentum", "Track Momentum", 100, 0, 32);
-    qa_hist->track_eta = new TH1D("track_eta", "Track Eta", 50, -1.1, 1.1);
-    qa_hist->track_phi = new TH1D("track_phi", "Track Phi", 50, 0, TMath::TwoPi());
+    qa_hist->track_loc = new TH2D("track_loc", "Track Loc", 100, -1.1, 1.1, 96, 0, TMath::TwoPi());
+
+    // Jet info
+    qa_hist->jet_pt_spectra = new TH1D("jet_momentum", "Jet Momentum", 90, 0, 45);
+    qa_hist->jet_subtracted_pt_spectra = new TH1D("jet_subtracted_momentum", "Jet Subtracted Momentum", 100, -10, 45);
+    qa_hist->jet_loc = new TH2D("jet_loc", "Jet Loc", 100, -1.1, 1.1, 96, 0, TMath::TwoPi());
 
     // Event plane
     ep_hist->east_uncorrected = new TH1D("east_uncorrected", "east_uncorrected", 30, 0, TMath::Pi());
@@ -226,10 +212,16 @@ void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outf
     // Track info
     qa_hist->track_momentum->SetDirectory(outfile);
     qa_hist->track_momentum->Write();
-    qa_hist->track_eta->SetDirectory(outfile);
-    qa_hist->track_eta->Write();
-    qa_hist->track_phi->SetDirectory(outfile);
-    qa_hist->track_phi->Write();
+    qa_hist->track_loc->SetDirectory(outfile);
+    qa_hist->track_loc->Write();
+    qa_hist->jet_pt_spectra->SetDirectory(outfile);
+    qa_hist->jet_pt_spectra->Write();
+    qa_hist->jet_subtracted_pt_spectra->SetDirectory(outfile);
+    qa_hist->jet_subtracted_pt_spectra->Write();
+    qa_hist->jet_loc->SetDirectory(outfile);
+    qa_hist->jet_loc->Write();
+
+
 
     // Event plane
     ep_hist->east_uncorrected->SetDirectory(outfile);
@@ -254,8 +246,6 @@ void cleanup(jet_tree_data *datum) {
     free(datum->hardcore_jets_phi);
     free(datum->hardcore_jets_E);
     free(datum->hardcore_jets_subtracted_pt);
-    free(datum->hardcore_jets_z);
-    free(datum->hardcore_jets_constituents);
     free(datum->all_jets_pt);
     free(datum->all_jets_eta);
     free(datum->all_jets_phi);

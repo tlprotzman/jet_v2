@@ -48,18 +48,9 @@
 // My includes
 #include "setup.h"
 
-// #pragma link C++ class std::vector<fastjet::PseudoJet>+;
-
+double JET_PT_CUT = 5;
 
 int main(int argc, char **argv) {
-    // Build filelist
-    // int num_input_files = std::stoi(getenv("INPUTFILECOUNT"));
-    // std::ofstream myfilelist("myfilelist.list", std::ofstream::out);
-    // for (size_t i = 0; i < num_input_files; i++) {
-    //     myfilelist << getenv(Form("INPUTFILE%d", i)) << std::endl;
-    //     std::cout << getenv(Form("INPUTFILE%d", i)) << std::endl;
-    // }
-    // myfilelist.close();
     // Input argument parsing
     if (argc < 3) {
         std::cout << "invoke with " << argv[0] << " -f {pico list}" << std::endl;
@@ -91,12 +82,6 @@ int main(int argc, char **argv) {
         }
     }
     std::cout << Form("Running %d events from %s%s\n\n", n, picos_to_read.c_str(), only_ep_finding ? ", just finding event plane" : "") << std::endl;
-    // std::ifstream filelist(picos_to_read);
-    // std::string line;
-    // while (filelist >> line) {
-    //     std::cout << line << std::endl;
-    // }
-    // filelist.close();
     
     ROOT::EnableImplicitMT();
 
@@ -107,9 +92,6 @@ int main(int argc, char **argv) {
     }
     std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
     
-    // std::string picos_to_read = "test.list"; 
-    // std::string picos_to_read = "smalltest.list"; 
-    // std::string picos_to_read = "/data/star/production_isobar_2018/ReversedFullField/P20ic/2018/083/19083049/st_physics_19083049_raw_1000011.picoDst.root";
     std::string bad_run_list = "";
 
 
@@ -227,8 +209,7 @@ int main(int argc, char **argv) {
             else {
                 double track_pt = track->pt();
                 qa_hist.track_momentum->Fill(track_pt);
-                qa_hist.track_eta->Fill(track->eta());
-                qa_hist.track_phi->Fill(track->phi());
+                qa_hist.track_loc->Fill(track->eta(), track->phi());
                 if (track_pt > 2) {
                     hardcore_tracks.push_back(*track);
                 }
@@ -245,19 +226,14 @@ int main(int argc, char **argv) {
         
         clear_vectors(&datum);
         for (fastjet::PseudoJet jet : hardcore_jets) {  
-            // std::cout << "hardcore: " << jet.pt() << std::endl;          
+            if (jet.pt() < JET_PT_CUT) {
+                break;
+            }
             datum.hardcore_jets_phi[datum.num_hardcore_jets] = jet.phi();
             datum.hardcore_jets_eta[datum.num_hardcore_jets] = jet.eta();
             datum.hardcore_jets_pt[datum.num_hardcore_jets] = jet.pt();
+            datum.hardcore_jets_subtracted_pt[datum.num_all_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
             datum.hardcore_jets_E[datum.num_hardcore_jets] = jet.E();
-            // std::cout << datum.num_hardcore_jets << "\t" << datum.hardcore_jets_pt[datum.num_hardcore_jets] << std::endl;
-            // datum.hardcore_jets_constituents->push_back(jet.constituents().size());
-            // std::cout << jet.constituents().size() << std::endl;
-            // double max_pt = 0;
-            // for (auto constituent : jet.constituents()) {
-            //     max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
-            // }
-            // datum.hardcore_jets_z->push_back(max_pt / jet.pt());
             datum.num_hardcore_jets++;
             if (datum.num_entries <= datum.num_hardcore_jets) {
                 break;
@@ -265,17 +241,19 @@ int main(int argc, char **argv) {
         }
 
         for (fastjet::PseudoJet jet : all_jets) {
-            if (jet.pt() < 1) {
-                break;
+            qa_hist.jet_loc->Fill(jet.eta(), jet.phi());
+            qa_hist.jet_pt_spectra->Fill(jet.pt());
+            double subtracted_pt = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
+            qa_hist.jet_subtracted_pt_spectra->Fill(subtracted_pt);
+            if (subtracted_pt < JET_PT_CUT) {
+                continue;
             }
             if (jet.constituents().size() < 2) {
                 continue;
             }
             if (datum.num_entries <= datum.num_all_jets) {
-                // std::cout << "overflow" << std::endl;
-                break;
+                continue;
             }
-            // std::cout << "all: " << jet.pt() << std::endl;          
             datum.all_jets_phi[datum.num_all_jets] = jet.phi();
             datum.all_jets_eta[datum.num_all_jets] = jet.eta();
             datum.all_jets_pt[datum.num_all_jets] = jet.pt();
@@ -290,7 +268,6 @@ int main(int argc, char **argv) {
             datum.num_all_jets++;
         }
         jet_data->Fill();
-        // std::cout << "filled? \n\n";
         
     }
     std::cout << "Count: " << processed_events << std::endl;
