@@ -27,7 +27,7 @@ LIBS += -lStEpdUtil
 LIBS += -lNetx
 
 analysis_object_list = qa.o setup.o
-post_object_list = qa_histograms.o setup.o draw_histogram.o
+post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o
 
 analysis_objects = $(analysis_object_list:%.o=build/%.o)
 post_objects = $(post_object_list:%.o=build/%.o)

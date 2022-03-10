@@ -15,20 +15,20 @@ Let's see if I can make a reasonably generic plotting macro that I'm happy with.
 #include "TCanvas.h"
 
 
-void draw_th1(histogram_package *histograms) {
+void draw_th1(histogram_package_s *histograms) {
     TCanvas *c = new TCanvas("", "", 1000, 1000);
     THStack *stack = new THStack();
     TLegend *legend = new TLegend();
 
     for (size_t i = 0; i < histograms->num_histograms; i++) {
-        histogram_data hist = histograms->hist[i];
+        histogram_data_s hist = histograms->hist[i];
         hist.hist->SetLineColor(hist.color);
         stack->Add(hist.hist);
         legend->AddEntry(hist.hist, hist.name.c_str());
     }
 
-    // stack->SetTitle(histograms->title.c_str());
-    // stack->GetXaxis()->SetTitle(histograms->x_title.c_str());
+    stack->SetTitle(histograms->title.c_str());
+    stack->GetXaxis()->SetTitle(histograms->x_title.c_str());
     // stack->GetYaxis()->SetTitle(histograms->y_title.c_str());
 
     stack->Draw("nostack");
@@ -39,8 +39,8 @@ void draw_th1(histogram_package *histograms) {
     c->SaveAs(Form("%s.%s", histograms->saveas.c_str(), "c"));
 }
 
-void draw_th1(histogram_data *histogram, std::string saveas) {
-    histogram_package package;
+void draw_th1(histogram_data_s *histogram, std::string saveas) {
+    histogram_package_s package;
     package.hist = histogram;
     package.saveas = saveas;
     draw_th1(&package);

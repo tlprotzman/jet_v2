@@ -124,22 +124,43 @@ void setup_tree(TTree *tree, jet_tree_data *datum) {
 
 // There must be a good way to semi-automatically generate this list...
 void read_tree(TTree *tree, jet_tree_data *datum) {
-    // Jet Spatial Components
-    tree->SetBranchAddress("jet_eta", &datum->jet_eta);
-    tree->SetBranchAddress("jet_phi", &datum->jet_phi);
+    // Initialize vectors
+    datum->num_entries = NUM_ENTRIES;
+    datum->hardcore_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->hardcore_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_z = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->all_jets_constituents = (UInt_t*) malloc(NUM_ENTRIES * sizeof(UInt_t));
+
+    // Vertex Components
     tree->SetBranchAddress("vx", &datum->vx);
     tree->SetBranchAddress("vy", &datum->vy);
     tree->SetBranchAddress("vz", &datum->vz);
     tree->SetBranchAddress("vpd_vz", &datum->vpd_vz);
 
-    // Jet Momentum Components
-    tree->SetBranchAddress("jet_momentum", &datum->jet_momentum);
-    tree->SetBranchAddress("jet_momentum_median_subtracted", &datum->jet_momentum_medium_subtracted);
-    tree->SetBranchAddress("jet_hardcore_momentum", &datum->jet_hardcore_momentum);
+    // Jet Components
+    tree->SetBranchAddress("hardcore_jets_num", &datum->num_hardcore_jets);
+    tree->SetBranchAddress("hardcore_jets_pt", datum->hardcore_jets_pt);
+    tree->SetBranchAddress("hardcore_jets_eta", datum->hardcore_jets_eta);
+    tree->SetBranchAddress("hardcore_jets_phi", datum->hardcore_jets_phi);
+    tree->SetBranchAddress("hardcore_jets_E", datum->hardcore_jets_E);
+    tree->SetBranchAddress("hardcore_jets_subtracted_pt", datum->hardcore_jets_subtracted_pt);
+    tree->SetBranchAddress("all_jets_num", &datum->num_all_jets);
+    tree->SetBranchAddress("all_jets_pt", datum->all_jets_pt);
+    tree->SetBranchAddress("all_jets_eta", datum->all_jets_eta);
+    tree->SetBranchAddress("all_jets_phi", datum->all_jets_phi);
+    tree->SetBranchAddress("all_jets_E", datum->all_jets_E);
+    tree->SetBranchAddress("all_jets_subtracted_pt", datum->all_jets_subtracted_pt);
+    tree->SetBranchAddress("all_jets_z", datum->all_jets_z);
+    tree->SetBranchAddress("all_jets_constituents", datum->all_jets_constituents);
 
-    // Jet Shape Components
-    tree->SetBranchAddress("jet_z", &datum->jet_z);
-    
     // Collision information
     tree->SetBranchAddress("event_plane_east", &datum->event_plane_east);
     tree->SetBranchAddress("event_plane_west", &datum->event_plane_west);
@@ -149,7 +170,7 @@ void read_tree(TTree *tree, jet_tree_data *datum) {
     // System
     tree->SetBranchAddress("tofmult", &datum->tofmult);
     tree->SetBranchAddress("refmult3", &datum->refmult3);
-    tree->SetBranchAddress("trigger_id", &datum->trigger_id);   // todo make this branch work, though it does seem to?
+    tree->SetBranchAddress("trigger_id", &datum->trigger_id);
     tree->SetBranchAddress("run_number", &datum->run_number);
     tree->SetBranchAddress("bbc_east_rate", &datum->bbc_east_rate);
     tree->SetBranchAddress("bbc_west_rate", &datum->bbc_west_rate);

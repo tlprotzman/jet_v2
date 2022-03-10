@@ -19,7 +19,8 @@ Produces (hopefully) pretty QA plots from the jet v2 analysis
 #include "TStyle.h"
 
 #include "setup.h"
-#include "draw_histogram.h"
+#include "histogram_data.h"
+#include "histogram_package.h"
 
 #include <iostream>
 
@@ -32,30 +33,18 @@ int main(int argc, char **argv) {
     read_tree(tree, &datum);
 
     // Histograms
-    histogram_package jet_spectrum;
-    jet_spectrum.hist = new histogram_data;
-    jet_spectrum.hist->hist = new TH1D("jet_spectra", "", 50, 0, 50);
-    jet_spectrum.title = "Jet Spectra, Background Subtracted";
-    jet_spectrum.x_title = "Momentum (GeV)";
-    jet_spectrum.saveas = "plots/jet_spectra";
+    histogram_package jet_pt_spectrum;
+    jet_pt_spectrum.set_save_location("plots/nocut_pt_spectrum");
+    jet_pt_spectrum.set_log_y(true);
+    jet_pt_spectrum.set_title("Jet Momentum Spectra");
+    jet_pt_spectrum.set_x_title("Pt");
+    jet_pt_spectrum.set_y_title("Count");
 
+    jet_pt_spectrum.add_histogram(new histogram_data(file->Get<TH1>("jet_momentum"), "Jet Mometum", kBlue));
+    jet_pt_spectrum.add_histogram(new histogram_data(file->Get<TH1>("jet_subtracted_momentum"), "Jet Mometum, Background Subtracted", kRed));
 
-    histogram_data jet_eta;
-    jet_eta.hist = new TH1D("jet_eta", "", 50, -1.5, 1.5);
-    histogram_data jet_phi;
-    jet_phi.hist = new TH1D("jet_phi", "", 50, 0, TMath::TwoPi());
-
-    for (Long64_t n = 0; n < tree->GetEntries(); n++) {
-        tree->GetEntry(n);
-
-        // Fill histograms
-        jet_spectrum.hist->hist->Fill(datum.jet_momentum_medium_subtracted);
-        jet_eta.hist->Fill(datum.jet_eta);
-        jet_phi.hist->Fill(datum.jet_phi);        
-    }
-
-    std::cerr << "made it here" << std::endl;
-
-    draw_th1(&jet_spectrum);
-
+    jet_pt_spectrum.set_legend(true, 0.48, 0.7);
+    jet_pt_spectrum.set_x_range(-15, 25);
+    
+    jet_pt_spectrum.draw();
 }
