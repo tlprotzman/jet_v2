@@ -26,25 +26,33 @@ LIBS += -ljetreader
 LIBS += -lStEpdUtil
 LIBS += -lNetx
 
-analysis_object_list = qa.o setup.o
+qa_object_list = qa.o setup.o
 post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o
+analysis_object_list = calculate_v2.o setup.o
 
-analysis_objects = $(analysis_object_list:%.o=build/%.o)
+qa_objects = $(qa_object_list:%.o=build/%.o)
 post_objects = $(post_object_list:%.o=build/%.o)
+analysis_objects = $(analysis_object_list:%.o=build/%.o)
 
-all: qa post
+
+all: qa post analysis
 
 build/%.o: %.cxx 
 	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) $< -o $@
 
-qa: $(analysis_objects)
-	$(CXX) $(LDFLAGS) $(LIBPATH) $(analysis_objects) $(LIBS) -o qa
+qa: $(qa_objects)
+	$(CXX) $(LDFLAGS) $(LIBPATH) $(qa_objects) $(LIBS) -o qa
 
 post: $(post_objects)
-	$(CXX) $(LDFLAGS) $(LIBPATH) $(post_objects) $(LIBS) -o post
+	$(CXX) $(LDFLAGS) $(LIBPATH) $(post_objects) $(LIBS) -o post_qa
+
+analysis: $(analysis_objects)
+	$(CXX) $(LDFLAGS) $(LIBPATH) $(analysis_objects) $(LIBS) -o analysis
+
 
 clean:
 	rm -f build/*
 	rm -f qa
-	rm -f post
+	rm -f post_qa
+	rm -f analysis
 

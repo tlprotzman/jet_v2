@@ -8,6 +8,7 @@ StEpdUtil
 *.png
 from_rcf
 qa
-post
+post_qa
+analysis
 dict.cxx
 dict_rdict.pcm
