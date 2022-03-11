@@ -6,6 +6,7 @@
 #include "TROOT.h"
 #include "Rtypes.h"
 #include "TH1.h"
+#include "TObject.h"
 
 #include <string>
 
@@ -32,11 +33,13 @@ class histogram_package {
         bool set_y_range(float y_min, float y_max);
 
         void add_histogram(histogram_data *hist);
+        void add_drawable(TObject *drawable);
 
         void draw();
 
     // private:
         std::vector<histogram_data*> *histograms;
+        std::vector<TObject*> *drawables;
         std::string title;
         std::string x_title;
         std::string y_title;

@@ -7,12 +7,14 @@
 #include "TCanvas.h"
 #include "TLegend.h"
 #include "THStack.h"
+#include "TObject.h"
 
 #include <string>
 #include <iostream>
 
 histogram_package::histogram_package() {
     this->histograms = new std::vector<histogram_data*>;
+    this->drawables = new std::vector<TObject*>;
     this->title = "";
     this->x_title = "";
     this->y_title = "";
@@ -95,6 +97,10 @@ void histogram_package::add_histogram(histogram_data *hist) {
     this->histograms->push_back(hist);
 }
 
+void histogram_package::add_drawable(TObject *drawable) {
+    this->drawables->push_back(drawable);
+}
+
 void histogram_package::draw() {
     TCanvas *c = new TCanvas("", "", 1000, 1000);
     THStack *stack = new THStack();
@@ -134,6 +140,12 @@ void histogram_package::draw() {
             std::cout << "ran" << std::endl;
         }
     }
+
+    // Draw remaining drawables
+    for (auto drawable : *this->drawables) {
+        drawable->Draw();
+    }
+
     if (this->saveas != "") {
         c->SaveAs(Form("%s.%s", this->saveas.c_str(), this->format.c_str()));
         c->SaveAs(Form("%s.%s", this->saveas.c_str(), "c"));
