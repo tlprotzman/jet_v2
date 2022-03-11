@@ -12,7 +12,7 @@ histogram_data::histogram_data(TH1 *hist, std::string name) {
     histogram_data(hist, name, kBlack);
 }
 
-histogram_data::histogram_data(TH1 *hist, std::string name, EColor color) {
+histogram_data::histogram_data(TH1 *hist, std::string name, int color) {
     this->hist = hist;
     this->name = name;
     this->color = color;
@@ -32,6 +32,6 @@ std::string histogram_data::get_name() {
     return this->name;
 }
 
-EColor histogram_data::get_color() {
+int histogram_data::get_color() {
     return this->color;
 }

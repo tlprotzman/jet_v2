@@ -24,9 +24,13 @@ class histogram_package {
         void set_format(std::string format);
         
         bool set_log_x(bool set);
+        bool set_log_x() {return set_log_x(true);};
         bool set_log_y(bool set);
+        bool set_log_y() {return set_log_y(true);};
         bool set_log_z(bool set);
+        bool set_log_z() {return set_log_z(true);};
         bool set_legend(bool set);
+        bool set_legend() {return set_legend(true);};
         bool set_legend(bool set, float x, float y);
 
         bool set_x_range(float x_min, float x_max);

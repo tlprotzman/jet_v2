@@ -10,17 +10,17 @@ class histogram_data {
     public:
         histogram_data();
         histogram_data(TH1 *hist, std::string name);
-        histogram_data(TH1 *hist, std::string name, EColor color);
+        histogram_data(TH1 *hist, std::string name, int color);
         ~histogram_data();
 
         TH1 *get_hist();
         std::string get_name();
-        EColor get_color();
+        int get_color();
 
     private:
         TH1 *hist;
         std::string name;
-        EColor color;
+        int color;
 };
 
 #endif // HISTOGRAM_DATA_H

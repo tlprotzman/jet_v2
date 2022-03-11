@@ -42,7 +42,7 @@ int main(int argc, char **argv) {
     // Jet Spectra, all jets
     histogram_package jet_pt_spectra;
     jet_pt_spectra.set_save_location("plots/nocut_jet_pt_spectrum");
-    jet_pt_spectra.set_log_y(true);
+    jet_pt_spectra.set_log_y();
     jet_pt_spectra.set_x_title("P_{t}");
     jet_pt_spectra.set_y_title("Count");
 
@@ -59,7 +59,7 @@ int main(int argc, char **argv) {
     // Track Spectra
     histogram_package track_pt_spectra;
     track_pt_spectra.set_save_location("plots/nocut_track_pt_spectra");
-    track_pt_spectra.set_log_y(true);
+    track_pt_spectra.set_log_y();
     track_pt_spectra.set_x_title("P_{t}");
     track_pt_spectra.set_y_title("Count");
 
@@ -93,8 +93,8 @@ int main(int argc, char **argv) {
     phi_spectra.add_histogram(new histogram_data(track_phi, "Tracks", kRed));
     phi_spectra.add_histogram(new histogram_data(jet_phi, "Jets", kBlue));
 
-    eta_spectra.set_legend(true);
-    phi_spectra.set_legend(true);
+    eta_spectra.set_legend();
+    phi_spectra.set_legend();
 
     eta_spectra.add_drawable(latex->DrawLatexNDC(0.5, 0.2, "#eta Distribution"));
     phi_spectra.add_drawable(latex->DrawLatexNDC(0.5, 0.2, "#phi Distribution"));
@@ -121,5 +121,43 @@ int main(int argc, char **argv) {
     c->SaveAs("plots/track_loc.png");
     c->SaveAs("plots/track_loc.c");
     delete c;
+
+    // Event Plane
+    histogram_package event_plane;
+    event_plane.set_save_location("plots/event_plane");
+    event_plane.set_x_title("#phi");
+    event_plane.set_y_title("#frac{dN}{d#phi}");
+    event_plane.set_y_range(3e4, 4e4);
+
+    histogram_data *east_uncorrected = new histogram_data(file->Get<TH1>("east_uncorrected"), "East, uncorrected", kRed);
+    east_uncorrected->get_hist()->SetLineStyle(3);
+    east_uncorrected->get_hist()->SetLineWidth(2);
+    event_plane.add_histogram(east_uncorrected);
+    histogram_data *west_uncorrected = new histogram_data(file->Get<TH1>("west_uncorrected"), "West, uncorrected", kBlue);
+    west_uncorrected->get_hist()->SetLineStyle(3);
+    west_uncorrected->get_hist()->SetLineWidth(2);
+    event_plane.add_histogram(west_uncorrected);
+    histogram_data *east_phi_corrected = new histogram_data(file->Get<TH1>("east_phi_corrected"), "East, phi corrected", kRed);
+    east_phi_corrected->get_hist()->SetLineStyle(2);
+    east_phi_corrected->get_hist()->SetLineWidth(2);
+    event_plane.add_histogram(east_phi_corrected);
+    histogram_data *west_phi_corrected = new histogram_data(file->Get<TH1>("west_phi_corrected"), "West, phi corrected", kBlue);
+    west_phi_corrected->get_hist()->SetLineStyle(2);
+    west_phi_corrected->get_hist()->SetLineWidth(2);
+    event_plane.add_histogram(west_phi_corrected);
+    histogram_data *east_phi_psi_corrected = new histogram_data(file->Get<TH1>("east_phi_psi_corrected"), "East, phi and psi corrected", kRed);
+    east_phi_psi_corrected->get_hist()->SetLineStyle(1);
+    east_phi_psi_corrected->get_hist()->SetLineWidth(2);
+    event_plane.add_histogram(east_phi_psi_corrected);
+    histogram_data *west_phi_psi_corrected = new histogram_data(file->Get<TH1>("west_phi_psi_corrected"), "West, phi and psi corrected", kBlue);
+    west_phi_psi_corrected->get_hist()->SetLineStyle(1);
+    west_phi_psi_corrected->get_hist()->SetLineWidth(2);
+    event_plane.add_histogram(west_phi_psi_corrected);
+
+    event_plane.set_legend();
+
+    event_plane.set_title("Event Plane");
+
+    event_plane.draw();
 
 }

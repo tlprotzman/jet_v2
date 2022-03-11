@@ -24,6 +24,8 @@ histogram_package::histogram_package() {
     this->log_z = false;
     this->legend = false;
     this->legend_man_pos = false;
+    this->man_x_range = false;
+    this->man_y_range = false;
 
     this->saveas = "";
     this->format = "png";
@@ -122,10 +124,15 @@ void histogram_package::draw() {
 
     if (this->man_x_range) {
         stack->GetXaxis()->SetRangeUser(this->x_min, this->x_max);
+        stack->Draw("nostack");
     }
 
     if (this->man_y_range) {
-        stack->GetYaxis()->SetRangeUser(this->y_min, this->y_max);
+        std::cout << "running" << std::endl;
+        // stack->GetYaxis()->SetRange(this->y_min, this->y_max);
+        stack->SetMinimum(this->y_min);
+        stack->SetMaximum(this->y_max);
+        stack->Draw("nostack");
     }
 
     if (this->legend) {
