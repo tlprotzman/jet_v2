@@ -16,6 +16,7 @@ Produces (hopefully) pretty QA plots from the jet v2 analysis
 #include "TLegend.h"
 #include "TFile.h"
 #include "TMath.h"
+#include "TChain.h"
 #include "TStyle.h"
 #include "TText.h"
 #include "TLatex.h"
@@ -127,7 +128,7 @@ int main(int argc, char **argv) {
     event_plane.set_save_location("plots/event_plane");
     event_plane.set_x_title("#phi");
     event_plane.set_y_title("#frac{dN}{d#phi}");
-    event_plane.set_y_range(3e4, 4e4);
+    // event_plane.set_y_range(3e4, 4e4);
 
     histogram_data *east_uncorrected = new histogram_data(file->Get<TH1>("east_uncorrected"), "East, uncorrected", kRed);
     east_uncorrected->get_hist()->SetLineStyle(3);
