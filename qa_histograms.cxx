@@ -45,7 +45,7 @@ int main(int argc, char **argv) {
     jet_pt_spectra.set_save_location("plots/nocut_jet_pt_spectrum");
     jet_pt_spectra.set_log_y();
     jet_pt_spectra.set_x_title("P_{t}");
-    jet_pt_spectra.set_y_title("Count");
+    jet_pt_spectra.set_y_title("#frac{dN}{dP_{t}}");
 
     jet_pt_spectra.add_histogram(new histogram_data(file->Get<TH1>("jet_momentum"), "Jet Mometum", kBlue));
     jet_pt_spectra.add_histogram(new histogram_data(file->Get<TH1>("jet_subtracted_momentum"), "Jet Mometum, Background Subtracted", kRed));
@@ -62,7 +62,7 @@ int main(int argc, char **argv) {
     track_pt_spectra.set_save_location("plots/nocut_track_pt_spectra");
     track_pt_spectra.set_log_y();
     track_pt_spectra.set_x_title("P_{t}");
-    track_pt_spectra.set_y_title("Count");
+    track_pt_spectra.set_y_title("#frac{dN}{dP_{t}}");
 
     track_pt_spectra.add_histogram(new histogram_data(file->Get<TH1>("track_momentum"), "Jet Mometum", kBlue));
     track_pt_spectra.set_x_range(-15, 40);
@@ -82,11 +82,11 @@ int main(int argc, char **argv) {
     histogram_package eta_spectra, phi_spectra;
     eta_spectra.set_save_location("plots/nocuts_eta_spectra");
     eta_spectra.set_x_title("#eta");
-    eta_spectra.set_y_title("Count");
+    eta_spectra.set_y_title("#frac{dN}{d#eta}");
 
     phi_spectra.set_save_location("plots/nocut_phi_spectra");
     phi_spectra.set_x_title("#phi");
-    phi_spectra.set_y_title("Count");
+    phi_spectra.set_y_title("#frac{dN}{d#phi}");
 
     eta_spectra.add_histogram(new histogram_data(track_eta, "Tracks", kRed));
     eta_spectra.add_histogram(new histogram_data(jet_eta, "Jets", kBlue));
@@ -115,7 +115,7 @@ int main(int argc, char **argv) {
 
     c = new TCanvas("", "", 1000, 1000);
     gStyle->SetOptStat(0);
-    track_loc->SetTitle("Jet Location");
+    track_loc->SetTitle("Track Location");
     track_loc->SetXTitle("#eta");
     track_loc->SetYTitle("#phi");
     track_loc->Draw("colz");
@@ -128,7 +128,7 @@ int main(int argc, char **argv) {
     event_plane.set_save_location("plots/event_plane");
     event_plane.set_x_title("#phi");
     event_plane.set_y_title("#frac{dN}{d#phi}");
-    // event_plane.set_y_range(3e4, 4e4);
+    event_plane.set_y_range(2950e3, 3500e3);
 
     histogram_data *east_uncorrected = new histogram_data(file->Get<TH1>("east_uncorrected"), "East, uncorrected", kRed);
     east_uncorrected->get_hist()->SetLineStyle(3);

@@ -28,14 +28,14 @@ LIBS += -lNetx
 
 qa_object_list = qa.o setup.o
 post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o
-analysis_object_list = calculate_v2.o setup.o
+analysis_object_list = calculate_v2.o setup.o histogram_package.o histogram_data.o
 
 qa_objects = $(qa_object_list:%.o=build/%.o)
 post_objects = $(post_object_list:%.o=build/%.o)
 analysis_objects = $(analysis_object_list:%.o=build/%.o)
 
 
-all: qa post analysis
+all: qa post_qa analysis
 
 build/%.o: %.cxx 
 	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) $< -o $@
@@ -43,7 +43,7 @@ build/%.o: %.cxx
 qa: $(qa_objects)
 	$(CXX) $(LDFLAGS) $(LIBPATH) $(qa_objects) $(LIBS) -o qa
 
-post: $(post_objects)
+post_qa: $(post_objects)
 	$(CXX) $(LDFLAGS) $(LIBPATH) $(post_objects) $(LIBS) -o post_qa
 
 analysis: $(analysis_objects)

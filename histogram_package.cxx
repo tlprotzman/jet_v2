@@ -8,6 +8,7 @@
 #include "TLegend.h"
 #include "THStack.h"
 #include "TObject.h"
+#include "TStyle.h"
 
 #include <string>
 #include <iostream>
@@ -107,6 +108,8 @@ void histogram_package::draw() {
     TCanvas *c = new TCanvas("", "", 1000, 1000);
     THStack *stack = new THStack();
     TLegend *legend = new TLegend();
+
+    c->SetMargin(0.155, 0.1, 0.1, 0.1);
 
     for (auto hist : *this->histograms) {
         stack->Add(hist->get_hist());

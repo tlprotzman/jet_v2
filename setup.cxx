@@ -12,7 +12,6 @@
 
 int NUM_ENTRIES = 10;
 
-
 void setup_cuts(jetreader::Reader *reader) {
     // Properties
     // Vertex Selection
