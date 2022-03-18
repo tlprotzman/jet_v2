@@ -18,7 +18,7 @@ void setup_cuts(jetreader::Reader *reader) {
     float vz_min = -50;
     float vz_max = 50;
     float vr_max = 0.5;
-    std::string bad_run_list = "";
+    std::string bad_run_list = "badrunlist.txt";
 
     // Track cuts
     float track_pt_max = 30;
@@ -166,10 +166,12 @@ void read_tree(TTree *tree, jet_tree_data *datum) {
     tree->SetBranchAddress("event_plane_full", &datum->event_plane_full);
     tree->SetBranchAddress("centrality16", &datum->centrality);
 
+    std::vector<std::seed_seq::result_type> *test;
+
     // System
     tree->SetBranchAddress("tofmult", &datum->tofmult);
     tree->SetBranchAddress("refmult3", &datum->refmult3);
-    tree->SetBranchAddress("trigger_id", &datum->trigger_id);
+    // tree->SetBranchAddress("trigger_id", &test);
     tree->SetBranchAddress("run_number", &datum->run_number);
     tree->SetBranchAddress("bbc_east_rate", &datum->bbc_east_rate);
     tree->SetBranchAddress("bbc_west_rate", &datum->bbc_west_rate);
@@ -183,14 +185,26 @@ void clear_vectors(jet_tree_data *datum) {
 
 void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     // Vertex info
-    qa_hist->vz = new TH1D("vz", "vz", 103, -51, 51);
+    qa_hist->vz = new TH2D("vz", "vz", 103, -51, 51, 103, -51, 51);
+    qa_hist->vz->GetXaxis()->SetTitle("vx");
+    qa_hist->vz->GetYaxis()->SetTitle("vpd vx");
     qa_hist->vr = new TH2D("vr", "vr", 103,  -0.51, 0.51, 103, -0.51, 0.51);
+    qa_hist->vr->GetXaxis()->SetTitle("vx");
+    qa_hist->vr->GetYaxis()->SetTitle("vy");
 
     // System
-    qa_hist->refmult3 = new TH1I("refmult3", "Ref Mult 3", 100, 0, 800);
+    qa_hist->pileup = new TH2I("pileup", "Pileup Rejection", 200, 0, 800, 200, 0, 800);
+    qa_hist->pileup->GetXaxis()->SetTitle("Refmult3");
+    qa_hist->pileup->GetYaxis()->SetTitle("Tofmatch");
     qa_hist->tofmult = new TH1I("tofmult", "Tof Mult", 100, 0, 1500);
     qa_hist->bbc_rate = new TH2F("bbc_rate", "BBC Rate", 100, 70000, 80000, 100, 70000, 80000);
-    qa_hist->centrailty = new TH1I("centrality", "centrality", 18, -1, 16);
+    qa_hist->bbc_rate->GetXaxis()->SetTitle("BBC East");
+    qa_hist->bbc_rate->GetYaxis()->SetTitle("BBC West");
+    qa_hist->centrality = new TH1I("centrality", "centrality", 18, -1, 16);
+    qa_hist->nMips = new TH2D("nMips", "nMips vs RefMult", 200, 0, 800, 200, 0, 2500);
+    qa_hist->nMips->GetXaxis()->SetTitle("RefMult3");
+    qa_hist->nMips->GetYaxis()->SetTitle("EPD nMips Sum");
+
 
     // Track info
     qa_hist->track_momentum = new TH1D("track_momentum", "Track Momentum", 100, 0, 32);
@@ -209,6 +223,9 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     ep_hist->east_phi_psi_corrected = new TH1D("east_phi_psi_corrected", "east_phi_psi_corrected", 30, 0, TMath::Pi());
     ep_hist->west_phi_psi_corrected = new TH1D("west_phi_psi_corrected", "west_phi_psi_corrected", 30, 0, TMath::Pi());
     ep_hist->ep_correlation = new TH2D("ep_correlation", "EP Correlation", 30, 0, TMath::Pi(), 30, 0, TMath::Pi());
+    ep_hist->epd_resolution = new TH2D("ep_resolution", "ep_resolution", 100, -1 * TMath::Pi(), TMath::Pi(), 18,-1, 16);
+    ep_hist->epd_resolution->GetXaxis()->SetTitle("#Psi_{ep}^{east}-#Psi_{ep}^{west}");
+    ep_hist->epd_resolution->GetYaxis()->SetTitle("Centrality Bin");
 }
 
 void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outfile) {
@@ -219,14 +236,16 @@ void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outf
     qa_hist->vr->Write();
 
     // System
-    qa_hist->refmult3->SetDirectory(outfile);
-    qa_hist->refmult3->Write();
+    qa_hist->pileup->SetDirectory(outfile);
+    qa_hist->pileup->Write();
     qa_hist->tofmult->SetDirectory(outfile);
     qa_hist->tofmult->Write();
     qa_hist->bbc_rate->SetDirectory(outfile);
     qa_hist->bbc_rate->Write();
-    qa_hist->centrailty->SetDirectory(outfile);
-    qa_hist->centrailty->Write();
+    qa_hist->centrality->SetDirectory(outfile);
+    qa_hist->centrality->Write();
+    qa_hist->nMips->SetDirectory(outfile);
+    qa_hist->nMips->Write();
 
 
     // Track info
@@ -258,6 +277,8 @@ void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outf
     ep_hist->west_phi_psi_corrected->Write();
     ep_hist->ep_correlation->SetDirectory(outfile);
     ep_hist->ep_correlation->Write();
+    ep_hist->epd_resolution->SetDirectory(outfile);
+    ep_hist->epd_resolution->Write();
 }
 
 void cleanup(jet_tree_data *datum) {

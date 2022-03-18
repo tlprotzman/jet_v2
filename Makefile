@@ -5,6 +5,7 @@ CXXFLAGS += -fPIC
 CXXFLAGS += -pipe
 CXXFLAGS += -D_VANILLA_ROOT_
 CXXFLAGS += -g
+# CXXFLAGS += -no-pie
 CXXFLAGS += -O3
 
 INCFLAGS  = -I$(ROOTSYS)/include
@@ -41,13 +42,13 @@ build/%.o: %.cxx
 	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) $< -o $@
 
 qa: $(qa_objects)
-	$(CXX) $(LDFLAGS) $(LIBPATH) $(qa_objects) $(LIBS) -o qa
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(qa_objects) $(LIBS) -o qa
 
 post_qa: $(post_objects)
-	$(CXX) $(LDFLAGS) $(LIBPATH) $(post_objects) $(LIBS) -o post_qa
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(post_objects) $(LIBS) -o post_qa
 
 analysis: $(analysis_objects)
-	$(CXX) $(LDFLAGS) $(LIBPATH) $(analysis_objects) $(LIBS) -o analysis
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(analysis_objects) $(LIBS) -o analysis
 
 
 clean:

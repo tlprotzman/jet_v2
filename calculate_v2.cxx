@@ -37,6 +37,10 @@ int main(int argc, char **argv) {
     std::vector<TH1D*> jet_relative_phi;
     std::vector<TH1D*> jet_relative_phi_unfolded;
     std::vector<double> calculated_v2;
+    double ep_resolution = 0;
+    long num_events = 0;
+
+    bool use_hardcore = false;
 
     for (size_t i = 0; i < num_pt_bins + 1; i++) {
         jet_relative_phi.push_back(new TH1D(Form("jet_relative_phi_%i", i), "Jet Spectra", 25, 0, TMath::PiOver2()));
@@ -46,7 +50,7 @@ int main(int argc, char **argv) {
     
     // Populate relative angles
     for (Long64_t n = 0; n < tree->GetEntries(); n++) {
-        // if (n > 1000000) {
+        // if (n > 1000) {
         //     break;
         // }
         if (n % 100000 == 0) {
@@ -57,22 +61,31 @@ int main(int argc, char **argv) {
             continue;
         }
 
+        UInt_t selected_num_jets = datum.num_all_jets;
+        double *selected_jet_phi = datum.all_jets_phi;
+        double *selected_jet_subtracted_pt = datum.all_jets_subtracted_pt;
+        if (use_hardcore) {
+            selected_num_jets = datum.num_hardcore_jets;
+            selected_jet_phi = datum.hardcore_jets_phi;
+            selected_jet_subtracted_pt = datum.hardcore_jets_subtracted_pt;
+        }
 
-        for (int i = 0; i < datum.num_all_jets; i++) {
+
+        for (int i = 0; i < selected_num_jets; i++) {
             // if (datum.all_jets_pt[i] < 10) {
             //     continue;
             // }
-            if (datum.all_jets_z[i] > 0.95) {
+            if (!use_hardcore && datum.all_jets_z[i] > 0.95) {
                 continue;
             }
-            double jet_phi = datum.all_jets_phi[i];
+            double jet_phi = selected_jet_phi[i];
             double relative = abs(jet_phi - datum.event_plane_full);
             double other_relative = jet_phi - datum.event_plane_full;
             if (other_relative < 0) {
                 other_relative += TMath::TwoPi();
             }
             int pt_bin = 0;
-            while (pt_bin < num_pt_bins && datum.all_jets_pt[i] > pt_bin_upper_bound[pt_bin]) {pt_bin++;}   // Populate the appropriate momentum bin
+            while (pt_bin < num_pt_bins && selected_jet_subtracted_pt[i] > pt_bin_upper_bound[pt_bin]) {pt_bin++;}   // Populate the appropriate momentum bin
             jet_relative_phi_unfolded[pt_bin]->Fill(other_relative);
             // if (relative < 0) {
             //     relative += TMath::TwoPi();
@@ -82,12 +95,19 @@ int main(int argc, char **argv) {
                 relative -= TMath::PiOver2();
             }
 
+            num_events++;
             jet_relative_phi[pt_bin]->Fill(relative);
             calculated_v2[pt_bin] += cos(2 * relative);
+            ep_resolution += cos(2 * (datum.event_plane_east - datum.event_plane_west));
         }
     }
+    
+    ep_resolution /= num_events;
+    ep_resolution = sqrt(ep_resolution) * sqrt(2);
+    std::cout << "ep_resolution: " << ep_resolution << std::endl;
     for (size_t i = 0; i < num_pt_bins + 1; i++) {
         calculated_v2[i] /= jet_relative_phi[i]->GetEntries();
+        calculated_v2[i] /= ep_resolution;
         std::cout << "Bin " << i << " calculated V2: " << calculated_v2[i] << " from " << jet_relative_phi[i]->GetEntries() << " events" << std::endl;
     }
 
@@ -122,6 +142,8 @@ int main(int argc, char **argv) {
     v2_momentum_dependence->SetMarkerStyle(1);
     v2_momentum_dependence->SetLineWidth(2);
     v2_momentum_dependence->Draw("AP");
+    v2_momentum_dependence->GetYaxis()->SetRangeUser(-0.2, 0.3);
+    // v2_momentum_dependence->GetXaxis()->SetBinLabel()        // ??? bin number on a graph seems weird
     c->SaveAs("plots/v2_momentum_dependence.png");
     c->SaveAs("plots/v2_momentum_dependence.c");
     return 0;

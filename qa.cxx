@@ -50,6 +50,8 @@
 
 double JET_PT_CUT = 5;
 
+double epd_mult(TClonesArray *epd_hits);
+
 int main(int argc, char **argv) {
     // Input argument parsing
     if (argc < 3) {
@@ -157,29 +159,36 @@ int main(int argc, char **argv) {
 
         // Event Info
         datum.trigger_id = event->triggerIds();
+        // for (auto t : event->triggerIds()) {
+        //     std::cout << t << "\t";
+        // }
+        // std::cout << std::endl;
         datum.run_number = event->runId();
 
         TVector3 primary_vertex = event->primaryVertex();
         datum.vx = event->primaryVertex().X();
         datum.vy = event->primaryVertex().Y();
         datum.vz = event->primaryVertex().Z();
-        qa_hist.vz->Fill(datum.vz);
+        qa_hist.vz->Fill(datum.vz, event->vzVpd());
         qa_hist.vr->Fill(datum.vx, datum.vy);
         datum.vpd_vz = event->vzVpd();
 
         datum.refmult3 = event->refMult3();
-        qa_hist.refmult3->Fill(datum.refmult3);
+        datum.tofmatch = event->nBTOFMatch();
+        qa_hist.pileup->Fill(datum.refmult3, datum.tofmatch);
         datum.tofmult = event->btofTrayMultiplicity();
         qa_hist.tofmult->Fill(datum.tofmult);
         datum.bbc_east_rate = event->bbcEastRate();
         datum.bbc_west_rate = event->bbcWestRate();
         qa_hist.bbc_rate->Fill(datum.bbc_east_rate, datum.bbc_west_rate);
         datum.centrality = reader->centrality16();
-        qa_hist.centrailty->Fill(datum.centrality);
+        qa_hist.centrality->Fill(datum.centrality);
 
         
         // Find event plane
         TClonesArray *epd_hits = reader->picoDst()->picoArray(8);
+        double nMips_sum = epd_mult(epd_hits);
+        qa_hist.nMips->Fill(datum.refmult3, nMips_sum); // save nmips for jet events too?
         StEpdEpInfo ep_info = ep_finder->Results(epd_hits, primary_vertex, datum.centrality);
         ep_hist.east_uncorrected->Fill(ep_info.EastRawPsi(2));
         ep_hist.west_uncorrected->Fill(ep_info.WestRawPsi(2));
@@ -188,6 +197,7 @@ int main(int argc, char **argv) {
         ep_hist.east_phi_psi_corrected->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2));
         ep_hist.west_phi_psi_corrected->Fill(ep_info.WestPhiWeightedAndShiftedPsi(2));
         ep_hist.ep_correlation->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2), ep_info.WestPhiWeightedAndShiftedPsi(2));
+        ep_hist.epd_resolution->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2) - ep_info.WestPhiWeightedAndShiftedPsi(2), reader->centrality16());
         datum.event_plane_east = ep_info.EastPhiWeightedAndShiftedPsi(2);
         datum.event_plane_west = ep_info.WestPhiWeightedAndShiftedPsi(2);
         datum.event_plane_full = ep_info.FullPhiWeightedAndShiftedPsi(2);
@@ -283,3 +293,17 @@ int main(int argc, char **argv) {
     cleanup(&datum);
 }
 
+
+double epd_mult(TClonesArray *epd_hits) {   // Is this really as slow as it's behaving?
+    double nMip_sum = 0;
+    for (auto h : *epd_hits) {
+        StPicoEpdHit *hit = (StPicoEpdHit*)h;
+        // int EW = hit->id() < 0 ? 0 : 1;     // 0 is east, 1 is west?  Check this
+        double nMips = hit->nMIP();
+        if (nMips > 3) {
+            nMips = 3;
+        }
+        nMip_sum += nMips;
+    }
+    return nMip_sum;
+}

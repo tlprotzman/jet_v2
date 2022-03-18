@@ -62,6 +62,7 @@ typedef struct {
     std::vector<std::seed_seq::result_type> trigger_id;
     double vpd_vz;                  // check against vz, for pileup
     unsigned short tofmult;         // for pileup cut
+    unsigned short tofmatch;         // for pileup cut
     int refmult3;
     int centrality;
     int run_number;
@@ -71,8 +72,7 @@ typedef struct {
 
 // QA Histograms
 typedef struct {
-    TH1 *vz;
-    TH1 *vpd_vz;
+    TH2 *vz;
     TH2 *vr;
     TH1 *track_momentum;
     TH2 *track_loc;
@@ -80,10 +80,11 @@ typedef struct {
     TH1 *jet_subtracted_pt_spectra;
     TH2 *jet_loc;
     // Calo_t calo_data; // figure out later
-    TH1 *centrailty;
-    TH1 *refmult3;
+    TH1 *centrality;
+    TH2 *pileup;
     TH1 *tofmult;
     TH2 *bbc_rate;
+    TH2 *nMips;
 } qa_histograms;
 
 typedef struct {
@@ -94,6 +95,7 @@ typedef struct {
     TH1 *east_phi_psi_corrected;
     TH1 *west_phi_psi_corrected;
     TH2 *ep_correlation;
+    TH2 *epd_resolution; 
 } ep_histograms;
 
 void setup_cuts(jetreader::Reader *reader);
