@@ -47,26 +47,29 @@
 
 // My includes
 #include "setup.h"
+#include "isobar_triggers.h"
 
 double JET_PT_CUT = 5;
+double NMIP_MIN = 0.3;
+double NMIP_MAX = 3;
 
-double epd_mult(TClonesArray *epd_hits);
+// Calculate the sum of nMips in the EPD.  Side 0 is east, 1 is west, 2 is both (Default both).
+double epd_mult(TClonesArray *epd_hits, int side=2);
 
 int main(int argc, char **argv) {
     // Input argument parsing
-    if (argc < 3) {
-        std::cout << "invoke with " << argv[0] << " -f {pico list}" << std::endl;
-        return -1;
-    }
     int optstring;
     int n = kMaxInt;
     bool only_ep_finding = false;
+    bool nocuts = false;
+    bool has_pico_list = false;
     std::string jobid = "";
     std::string picos_to_read;
-    while ((optstring = getopt(argc, argv, "f:en:j:s")) != -1) {
+    while ((optstring = getopt(argc, argv, "f:en:j:sch")) != -1) {
         switch(optstring) {
             case 'f':
                 picos_to_read = std::string(optarg);
+                has_pico_list = true;
                 break;
             case 'e':
                 only_ep_finding = true;
@@ -79,13 +82,30 @@ int main(int argc, char **argv) {
                 break;
             case 's':
                 picos_to_read = "myfilelist.list";
+                has_pico_list = true;
                 break;
+            case 'c':
+                nocuts = true;
+                break;
+            case 'h':
+                std::cout << "Runs QA for Tristan's jet v2 analysis, targeting the isobar dataset\n";
+                std::cout << "\t-f\tList of picos to read\n";
+                std::cout << "\t-e\tOnly finds event plane, no jet finding\n";
+                std::cout << "\t-n\tNumber of events to run over\n";
+                std::cout << "\t-j\tJob ID to be appended to file name\n";
+                std::cout << "\t-c\tRun without QA cuts\n";
+                return 0;
             default: break;
         }
     }
+    if (!has_pico_list) {
+        std::cout << "invoke with " << argv[0] << " -f {pico list}" << std::endl;
+        return -1;
+    }
+
     std::cout << Form("Running %d events from %s%s\n\n", n, picos_to_read.c_str(), only_ep_finding ? ", just finding event plane" : "") << std::endl;
     
-    ROOT::EnableImplicitMT();
+    // ROOT::EnableImplicitMT();
 
     // PARAMETERS
     int DEBUG_LEVEL = 0;
@@ -99,7 +119,8 @@ int main(int argc, char **argv) {
 
     // INITIALIZATION
     jetreader::Reader *reader = new jetreader::Reader(picos_to_read);
-    setup_cuts(reader);
+    setup_cuts(reader, nocuts);
+
     
     // Trees
     TFile *outfile = new TFile(Form("%sout.root", jobid.c_str()), "RECREATE");
@@ -135,9 +156,12 @@ int main(int argc, char **argv) {
 
     // Set up event plane finding
     StEpdEpFinder *ep_finder = new StEpdEpFinder(17, "StEpdEpFinderCorrectionHistograms_OUTPUT.root", "StEpdEpFinderCorrectionHistograms_INPUT.root");
-    ep_finder->SetnMipThreshold(0.3);
-    ep_finder->SetMaxTileWeight(3);
+    ep_finder->SetnMipThreshold(NMIP_MIN);
+    ep_finder->SetMaxTileWeight(NMIP_MAX);
     ep_finder->SetEpdHitFormat(2); // for StPicoDst
+
+    // Trigger Identification
+    isobar_triggers trigger_names; 
 
 
     // Event Loop
@@ -158,11 +182,30 @@ int main(int argc, char **argv) {
         }
 
         // Event Info
-        datum.trigger_id = event->triggerIds();
-        // for (auto t : event->triggerIds()) {
-        //     std::cout << t << "\t";
-        // }
-        // std::cout << std::endl;
+        // datum.trigger_id = event->triggerIds();
+        bool is_minbias = false;
+        bool is_bht1_vpd30 = false;
+        datum.num_triggers = 0;
+        for (auto t : event->triggerIds()) {
+            if (trigger_names.triggers[t] == trigger_names.minbias) {
+                is_minbias = true;
+            } else if (trigger_names.triggers[t] == trigger_names.bht1_vpd30) {
+                is_bht1_vpd30 = true;
+            }
+            datum.triggers[datum.num_triggers] = t;
+            datum.num_triggers++;
+            if (datum.num_entries <= datum.num_triggers) {
+                std::cerr << "WARNING: NOT ENOUGH SPACE FOR ALL TRIGGERS" << std::endl;
+            }
+        }
+
+        if (!only_ep_finding && !is_bht1_vpd30) {   // Only run analysis on bht1_vpd30 trigger - feels weird
+            continue;
+        }
+        // std::cout << "Minbias: " << is_minbias << "\tbht1_vpd30: " << is_bht1_vpd30 << "\n";
+
+
+        
         datum.run_number = event->runId();
 
         TVector3 primary_vertex = event->primaryVertex();
@@ -186,6 +229,9 @@ int main(int argc, char **argv) {
 
         
         // Find event plane
+        if (only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
+            continue;
+        }
         TClonesArray *epd_hits = reader->picoDst()->picoArray(8);
         double nMips_sum = epd_mult(epd_hits);
         qa_hist.nMips->Fill(datum.refmult3, nMips_sum); // save nmips for jet events too?
@@ -294,16 +340,20 @@ int main(int argc, char **argv) {
 }
 
 
-double epd_mult(TClonesArray *epd_hits) {   // Is this really as slow as it's behaving?
+double epd_mult(TClonesArray *epd_hits, int side) {   // Is this really as slow as it's behaving?
     double nMip_sum = 0;
     for (auto h : *epd_hits) {
         StPicoEpdHit *hit = (StPicoEpdHit*)h;
-        // int EW = hit->id() < 0 ? 0 : 1;     // 0 is east, 1 is west?  Check this
-        double nMips = hit->nMIP();
-        if (nMips > 3) {
-            nMips = 3;
+        if (side == 2 || side == (hit->id() < 0 ? 0 : 1)) {     // 0 is east, 1 is west?  Check this
+            double nMips = hit->nMIP();
+            if (nMips < NMIP_MIN) {
+                nMips = 0;
+            }
+            if (nMips > NMIP_MAX) {
+                nMips = NMIP_MAX;
+            }
+            nMip_sum += nMips;
         }
-        nMip_sum += nMips;
     }
     return nMip_sum;
 }

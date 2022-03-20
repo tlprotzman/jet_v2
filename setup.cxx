@@ -12,7 +12,7 @@
 
 int NUM_ENTRIES = 10;
 
-void setup_cuts(jetreader::Reader *reader) {
+void setup_cuts(jetreader::Reader *reader, bool nocuts) {
     // Properties
     // Vertex Selection
     float vz_min = -50;
@@ -36,35 +36,38 @@ void setup_cuts(jetreader::Reader *reader) {
     std::string bad_tower_list = "";
 
 
-    // Apply reader properties
-    if (bad_run_list != "") {
-        reader->eventSelector()->addBadRuns(bad_run_list);
+    if (!nocuts) {
+        // Apply reader properties
+        if (bad_run_list != "") {
+            reader->eventSelector()->addBadRuns(bad_run_list);
+        }
+
+        // Vertex
+        reader->eventSelector()->setVzRange(vz_min, vz_max);
+        reader->eventSelector()->setVrMax(vr_max);
+
+        // Tracks
+        reader->trackSelector()->setPtMax(track_pt_max);
+        reader->trackSelector()->setDcaMax(track_dca_max);
+        reader->trackSelector()->setNHitsMin(track_nhits_min);
+        reader->trackSelector()->setNHitsFracMin(track_nhits_frac_min);
+        reader->trackSelector()->rejectEventOnPtFailure(reject_track_on_fail);
+
+        // Tower
+        if (bad_tower_list != "") {
+            reader->towerSelector()->addBadTowers(bad_tower_list);
+        }
+        reader->useHadronicCorrection(tower_use_hadronic_correction, tower_hadronic_correction_factor);
+        reader->useApproximateTrackTowerMatching(tower_use_approximate_track_tower_matching);
+        reader->towerSelector()->setEtMax(tower_et_max);
+        reader->towerSelector()->rejectEventOnEtFailure(reject_tower_on_fail);
+
     }
-
-    // Vertex
-    reader->eventSelector()->setVzRange(vz_min, vz_max);
-    reader->eventSelector()->setVrMax(vr_max);
-
-    // Tracks
-    reader->trackSelector()->setPtMax(track_pt_max);
-    reader->trackSelector()->setDcaMax(track_dca_max);
-    reader->trackSelector()->setNHitsMin(track_nhits_min);
-    reader->trackSelector()->setNHitsFracMin(track_nhits_frac_min);
-    reader->trackSelector()->rejectEventOnPtFailure(reject_track_on_fail);
-
-    // Tower
-    if (bad_tower_list != "") {
-        reader->towerSelector()->addBadTowers(bad_tower_list);
-    }
-    reader->useHadronicCorrection(tower_use_hadronic_correction, tower_hadronic_correction_factor);
-    reader->useApproximateTrackTowerMatching(tower_use_approximate_track_tower_matching);
-    reader->towerSelector()->setEtMax(tower_et_max);
-    reader->towerSelector()->rejectEventOnEtFailure(reject_tower_on_fail);
-
+    
     // Centrality
     reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Zr);
     reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Ru);
-
+    
     reader->Init();
 }
 
@@ -83,6 +86,7 @@ void setup_tree(TTree *tree, jet_tree_data *datum) {
     datum->all_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->all_jets_z = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->all_jets_constituents = (UInt_t*) malloc(NUM_ENTRIES * sizeof(UInt_t));
+    datum->triggers = (long*) malloc(NUM_ENTRIES * sizeof(long));
 
     // Vertex Components
     tree->Branch("vx", &datum->vx);
@@ -115,7 +119,8 @@ void setup_tree(TTree *tree, jet_tree_data *datum) {
     // System
     tree->Branch("tofmult", &datum->tofmult);
     tree->Branch("refmult3", &datum->refmult3);
-    tree->Branch("trigger_id", &datum->trigger_id);
+    tree->Branch("num_triggers", &datum->num_triggers);
+    tree->Branch("triggers", datum->triggers, "triggers[num_triggers]/L");
     tree->Branch("run_number", &datum->run_number);
     tree->Branch("bbc_east_rate", &datum->bbc_east_rate);
     tree->Branch("bbc_west_rate", &datum->bbc_west_rate);
@@ -186,8 +191,8 @@ void clear_vectors(jet_tree_data *datum) {
 void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     // Vertex info
     qa_hist->vz = new TH2D("vz", "vz", 103, -51, 51, 103, -51, 51);
-    qa_hist->vz->GetXaxis()->SetTitle("vx");
-    qa_hist->vz->GetYaxis()->SetTitle("vpd vx");
+    qa_hist->vz->GetXaxis()->SetTitle("vz");
+    qa_hist->vz->GetYaxis()->SetTitle("vpd vz");
     qa_hist->vr = new TH2D("vr", "vr", 103,  -0.51, 0.51, 103, -0.51, 0.51);
     qa_hist->vr->GetXaxis()->SetTitle("vx");
     qa_hist->vr->GetYaxis()->SetTitle("vy");

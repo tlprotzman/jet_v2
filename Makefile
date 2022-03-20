@@ -27,7 +27,7 @@ LIBS += -ljetreader
 LIBS += -lStEpdUtil
 LIBS += -lNetx
 
-qa_object_list = qa.o setup.o
+qa_object_list = qa.o setup.o isobar_triggers.o
 post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o
 analysis_object_list = calculate_v2.o setup.o histogram_package.o histogram_data.o
 

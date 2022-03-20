@@ -128,9 +128,12 @@ int main(int argc, char **argv) {
     event_plane.set_save_location("plots/event_plane");
     event_plane.set_x_title("#phi");
     event_plane.set_y_title("#frac{dN}{d#phi}");
-    event_plane.set_y_range(2950e3, 3500e3);
 
     histogram_data *east_uncorrected = new histogram_data(file->Get<TH1>("east_uncorrected"), "East, uncorrected", kRed);
+    double ep_max = east_uncorrected->get_hist()->GetMaximum() * 1.1;
+    double ep_min = east_uncorrected->get_hist()->GetMinimum() * 0.9;
+    event_plane.set_y_range(ep_min, ep_max);
+
     east_uncorrected->get_hist()->SetLineStyle(3);
     east_uncorrected->get_hist()->SetLineWidth(2);
     event_plane.add_histogram(east_uncorrected);

@@ -59,7 +59,9 @@ typedef struct {
     double jet_z;
     double vx, vy, vz;
     double event_plane_east, event_plane_west, event_plane_full;
-    std::vector<std::seed_seq::result_type> trigger_id;
+    // std::vector<std::seed_seq::result_type> trigger_id;
+    UInt_t num_triggers;
+    long *triggers;
     double vpd_vz;                  // check against vz, for pileup
     unsigned short tofmult;         // for pileup cut
     unsigned short tofmatch;         // for pileup cut
@@ -98,7 +100,7 @@ typedef struct {
     TH2 *epd_resolution; 
 } ep_histograms;
 
-void setup_cuts(jetreader::Reader *reader);
+void setup_cuts(jetreader::Reader *reader, bool nocuts);
 void setup_tree(TTree *tree, jet_tree_data *datum);
 void read_tree(TTree *tree, jet_tree_data *datum);
 void clear_vectors(jet_tree_data *datum);
