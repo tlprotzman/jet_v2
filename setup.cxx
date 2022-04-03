@@ -74,11 +74,13 @@ void setup_cuts(jetreader::Reader *reader, bool nocuts) {
 void setup_tree(TTree *tree, jet_tree_data *datum) {
     // Initialize vectors
     datum->num_entries = NUM_ENTRIES;
+    datum->num_hardcore_jets = 0; // Always initialize your variables... 
     datum->hardcore_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->hardcore_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->hardcore_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->hardcore_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->hardcore_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
+    datum->num_all_jets = 0;  // grr...
     datum->all_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->all_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
     datum->all_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
