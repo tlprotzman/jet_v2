@@ -55,6 +55,7 @@ double NMIP_MAX = 3;
 
 // Calculate the sum of nMips in the EPD.  Side 0 is east, 1 is west, 2 is both (Default both).
 double epd_mult(TClonesArray *epd_hits, int side=2);
+bool pileup_cut(int charged_particles, int tofmatch);
 
 int main(int argc, char **argv) {
     // Input argument parsing
@@ -226,6 +227,13 @@ int main(int argc, char **argv) {
         qa_hist.bbc_rate->Fill(datum.bbc_east_rate, datum.bbc_west_rate);
         datum.centrality = reader->centrality16();
         qa_hist.centrality->Fill(datum.centrality);
+        
+        
+        // Pileup cut
+        if (!pileup_cut(event->numberOfPrimaryTracks(), datum.tofmult)) {
+            continue;
+        }
+        
 
         
         // Find event plane
@@ -356,4 +364,36 @@ double epd_mult(TClonesArray *epd_hits, int side) {   // Is this really as slow 
         }
     }
     return nMip_sum;
+}
+
+// Pileup Cut - stolen shamelessly from https://drupal.star.bnl.gov/STAR/system/files/Isobar_Run18_Step2_QA_Oct14_0_0.pdf
+// Returns true if it passes the cut, false otherwise
+bool pileup_cut(int charged_particles, int tofmatch) {
+    double p0_low = -13.8407;
+    double p1_low = 1.00334;
+    double p2_low = 0.000421093;
+    double p3_low = -1.88309e-06;
+    double p4_low = 2.27559e-09;
+
+    double p0_high = 10.4218;
+    double p1_high = 1.84005;
+    double p2_high = -0.00289939;
+    double p3_high = 1.01996e-05;
+    double p4_high = -1.472e-08;
+
+    double val_low = p0_low;
+    val_low += p1_low * pow(tofmatch, 1);
+    val_low += p2_low * pow(tofmatch, 2);
+    val_low += p3_low * pow(tofmatch, 3);
+    val_low += p4_low * pow(tofmatch, 4);
+
+    double val_high = p0_high;
+    val_high += p1_high * pow(tofmatch, 1);
+    val_high += p2_high * pow(tofmatch, 2);
+    val_high += p3_high * pow(tofmatch, 3);
+    val_high += p4_high * pow(tofmatch, 4);
+
+    // std::cout << "Low: " << val_low << "\tHigh: " << val_high << "\n";
+
+    return charged_particles > val_low && charged_particles < val_high;
 }

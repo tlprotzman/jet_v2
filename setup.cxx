@@ -15,14 +15,14 @@ int NUM_ENTRIES = 10;
 void setup_cuts(jetreader::Reader *reader, bool nocuts) {
     // Properties
     // Vertex Selection
-    float vz_min = -50;
-    float vz_max = 50;
-    float vr_max = 0.5;
+    float vz_min = -35;
+    float vz_max = 25;
+    float vr_max = 2;
     std::string bad_run_list = "badrunlist.txt";
 
     // Track cuts
     float track_pt_max = 30;
-    float track_dca_max = 3;
+    float track_dca_max = 1;
     float track_nhits_min = 15;
     float track_nhits_frac_min = 0.52;
     bool reject_track_on_fail = true;
