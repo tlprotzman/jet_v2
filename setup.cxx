@@ -200,7 +200,7 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     qa_hist->vr->GetYaxis()->SetTitle("vy");
 
     // System
-    qa_hist->pileup = new TH2I("pileup", "Pileup Rejection", 200, 0, 800, 200, 0, 800);
+    qa_hist->pileup = new TH2I("pileup", "Pileup Rejection", 200, 0, 800, 200, 0, 1600);
     qa_hist->pileup->GetXaxis()->SetTitle("Refmult3");
     qa_hist->pileup->GetYaxis()->SetTitle("Tofmatch");
     qa_hist->tofmult = new TH1I("tofmult", "Tof Mult", 100, 0, 1500);

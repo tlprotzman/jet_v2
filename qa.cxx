@@ -55,7 +55,7 @@ double NMIP_MAX = 3;
 
 // Calculate the sum of nMips in the EPD.  Side 0 is east, 1 is west, 2 is both (Default both).
 double epd_mult(TClonesArray *epd_hits, int side=2);
-bool pileup_cut(int charged_particles, int tofmatch);
+bool pileup_cut(int charged_particles, int tofmatch, int tofmult, int refmult3);
 
 int main(int argc, char **argv) {
     // Input argument parsing
@@ -203,9 +203,17 @@ int main(int argc, char **argv) {
         if (!only_ep_finding && !is_bht1_vpd30) {   // Only run analysis on bht1_vpd30 trigger - feels weird
             continue;
         }
+
+        // Find event plane
+        if (only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
+            continue;
+        }
         // std::cout << "Minbias: " << is_minbias << "\tbht1_vpd30: " << is_bht1_vpd30 << "\n";
 
-
+        // Pileup cut
+        if (!pileup_cut(event->numberOfPrimaryTracks(), event->nBTOFMatch(), event->btofTrayMultiplicity(), event->refMult3())) {
+            continue;
+        }
         
         datum.run_number = event->runId();
 
@@ -213,33 +221,22 @@ int main(int argc, char **argv) {
         datum.vx = event->primaryVertex().X();
         datum.vy = event->primaryVertex().Y();
         datum.vz = event->primaryVertex().Z();
-        qa_hist.vz->Fill(datum.vz, event->vzVpd());
-        qa_hist.vr->Fill(datum.vx, datum.vy);
         datum.vpd_vz = event->vzVpd();
-
         datum.refmult3 = event->refMult3();
         datum.tofmatch = event->nBTOFMatch();
-        qa_hist.pileup->Fill(datum.refmult3, datum.tofmatch);
         datum.tofmult = event->btofTrayMultiplicity();
-        qa_hist.tofmult->Fill(datum.tofmult);
         datum.bbc_east_rate = event->bbcEastRate();
         datum.bbc_west_rate = event->bbcWestRate();
-        qa_hist.bbc_rate->Fill(datum.bbc_east_rate, datum.bbc_west_rate);
         datum.centrality = reader->centrality16();
+
+        qa_hist.vz->Fill(datum.vz, event->vzVpd());
+        qa_hist.vr->Fill(datum.vx, datum.vy);
+        qa_hist.pileup->Fill(datum.refmult3, datum.tofmult);
+        qa_hist.tofmult->Fill(datum.tofmult);
+        qa_hist.bbc_rate->Fill(datum.bbc_east_rate, datum.bbc_west_rate);
         qa_hist.centrality->Fill(datum.centrality);
         
-        
-        // Pileup cut
-        if (!pileup_cut(event->numberOfPrimaryTracks(), datum.tofmult)) {
-            continue;
-        }
-        
-
-        
-        // Find event plane
-        if (only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
-            continue;
-        }
+       
         TClonesArray *epd_hits = reader->picoDst()->picoArray(8);
         double nMips_sum = epd_mult(epd_hits);
         qa_hist.nMips->Fill(datum.refmult3, nMips_sum); // save nmips for jet events too?
@@ -368,7 +365,7 @@ double epd_mult(TClonesArray *epd_hits, int side) {   // Is this really as slow 
 
 // Pileup Cut - stolen shamelessly from https://drupal.star.bnl.gov/STAR/system/files/Isobar_Run18_Step2_QA_Oct14_0_0.pdf
 // Returns true if it passes the cut, false otherwise
-bool pileup_cut(int charged_particles, int tofmatch) {
+bool pileup_cut(int charged_particles, int tofmatch, int tofmult, int refmult3) {
     double p0_low = -13.8407;
     double p1_low = 1.00334;
     double p2_low = 0.000421093;
@@ -395,5 +392,10 @@ bool pileup_cut(int charged_particles, int tofmatch) {
 
     // std::cout << "Low: " << val_low << "\tHigh: " << val_high << "\n";
 
-    return charged_particles > val_low && charged_particles < val_high;
+    // basic cuts on refmult3 vs tofmult
+    bool passA = tofmult > -30 + 1.95 * refmult3 && tofmult < 25 + 2.2 * refmult3;
+    // bool passB = charged_particles > val_low && charged_particles < val_high;;
+    bool passB = true;
+    // std::cout << passA << "\t" << passB << std::endl;
+    return passA && passB;
 }
