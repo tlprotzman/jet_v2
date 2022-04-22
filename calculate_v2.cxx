@@ -7,6 +7,7 @@ tlprotzman@gmail.com
 
 #include "TROOT.h"
 #include "TCanvas.h"
+#include "TChain.h"
 #include "TF1.h"
 #include "TFile.h"
 #include "TH1D.h"
@@ -24,13 +25,23 @@ tlprotzman@gmail.com
 #include "histogram_data.h"
 #include "histogram_package.h"
 
+#include <iostream>
+#include <fstream>
+
 
 int main(int argc, char **argv) {
     // ROOT::EnableImplicitMT();
-    TFile *file = TFile::Open("out.root");
-    TTree *tree = file->Get<TTree>("jet_data");
+    // TFile *file = TFile::Open("out.root");
+    TChain *chain = new TChain("jet_data"); // Set up chain to analyse
+    std::ifstream files("in.list");
+    std::string filePath;
+    while (std::getline(files, filePath)) {
+        chain->AddFile(filePath.c_str());
+    }
+    files.close();
+
     jet_tree_data datum;
-    read_tree(tree, &datum);
+    read_tree(chain, &datum);
 
     size_t num_pt_bins = 8;
     double pt_bin_upper_bound[8] = {5, 10, 15, 20, 25, 30, 35, 40};
@@ -49,14 +60,14 @@ int main(int argc, char **argv) {
     }
     
     // Populate relative angles
-    for (Long64_t n = 0; n < tree->GetEntries(); n++) {
+    for (Long64_t n = 0; n < chain->GetEntries(); n++) {
         // if (n > 1000) {
         //     break;
         // }
         if (n % 100000 == 0) {
             std::cout << "Processed " << n << " events" << std::endl;
         }
-        tree->GetEvent(n);
+        chain->GetEvent(n);
         if (datum.centrality < 6 || datum.centrality > 9) {  // accept between 50-30% central
             continue;
         }
@@ -87,9 +98,9 @@ int main(int argc, char **argv) {
             int pt_bin = 0;
             while (pt_bin < num_pt_bins && selected_jet_subtracted_pt[i] > pt_bin_upper_bound[pt_bin]) {pt_bin++;}   // Populate the appropriate momentum bin
             jet_relative_phi_unfolded[pt_bin]->Fill(other_relative);
-            // if (relative < 0) {
-            //     relative += TMath::TwoPi();
-            // }
+            if (relative < 0) {
+                relative += TMath::TwoPi();
+            }
 
             while (relative > TMath::PiOver2()) {
                 relative -= TMath::PiOver2();
@@ -125,7 +136,7 @@ int main(int argc, char **argv) {
         v2_fit->SetParameters(1, 0);
         v2_fit->SetParNames("offset", "v2");
         jet_relative_phi[i]->Fit(Form("v2_bin_%d", i));
-        x[i] = i * 5;
+        x[i] = i * 5 - 2.5;
         ex[i] = 1;
         y[i] = v2_fit->GetParameter("v2");
         ey[i] = v2_fit->GetParError(v2_fit->GetParNumber("v2"));
@@ -146,6 +157,7 @@ int main(int argc, char **argv) {
     // v2_momentum_dependence->GetXaxis()->SetBinLabel()        // ??? bin number on a graph seems weird
     c->SaveAs("plots/v2_momentum_dependence.png");
     c->SaveAs("plots/v2_momentum_dependence.c");
+    std::cerr << "Reached here" << std::endl;
     return 0;
 
     

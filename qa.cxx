@@ -253,7 +253,7 @@ int main(int argc, char **argv) {
         datum.event_plane_west = ep_info.WestPhiWeightedAndShiftedPsi(2);
         datum.event_plane_full = ep_info.FullPhiWeightedAndShiftedPsi(2);
         if (only_ep_finding) {
-            jet_data->Fill();
+            // jet_data->Fill();
             continue;
         }
         
