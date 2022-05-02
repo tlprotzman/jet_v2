@@ -230,7 +230,7 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     ep_hist->east_phi_psi_corrected = new TH1D("east_phi_psi_corrected", "east_phi_psi_corrected", 30, 0, TMath::Pi());
     ep_hist->west_phi_psi_corrected = new TH1D("west_phi_psi_corrected", "west_phi_psi_corrected", 30, 0, TMath::Pi());
     ep_hist->ep_correlation = new TH2D("ep_correlation", "EP Correlation", 30, 0, TMath::Pi(), 30, 0, TMath::Pi());
-    ep_hist->epd_resolution = new TH2D("ep_resolution", "ep_resolution", 100, -1 * TMath::Pi(), TMath::Pi(), 18,-1, 16);
+    ep_hist->epd_resolution = new TH2D("ep_resolution", "ep_resolution", 100, -1 * TMath::Pi(), TMath::Pi(), 17, -0.5, 16.5);
     ep_hist->epd_resolution->GetXaxis()->SetTitle("#Psi_{ep}^{east}-#Psi_{ep}^{west}");
     ep_hist->epd_resolution->GetYaxis()->SetTitle("Centrality Bin");
 }
