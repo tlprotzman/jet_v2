@@ -7,12 +7,88 @@
 #include "TH2D.h"
 #include "TMath.h"
 #include "TFile.h"
+#include "TROOT.h"
 
+#include <stdexcept>
 #include <string>
 
 int NUM_ENTRIES = 10;
 
-void setup_cuts(jetreader::Reader *reader, bool nocuts) {
+// QA_Manager initializes the QA code to run over the data in the desired way
+QA_Manager::QA_Manager(int argc, char** argv) {
+    this->max_events = 0;
+    this->max_events_set = false;
+    this->do_cuts = true;
+    this->has_pico_list = false;
+    this->only_ep_finding = false;
+    this->job_id = "";
+    this->picos_to_read = "";
+    this->debug_level = 0;
+
+    if (this->setup_tasks(argc, argv)) {    // Set up tasks
+        throw std::runtime_error("Error initializing QA_Manager");
+    }
+    this->reader = new jetreader::Reader(this->picos_to_read); // Set up jetreader
+    this->setup_cuts();
+}
+
+QA_Manager::~QA_Manager() {
+    delete this->reader;
+}
+
+// setup_tasks parses the arguments and sets appropriate variables
+int QA_Manager::setup_tasks(int argc, char** argv) {
+    int optstring;
+    while ((optstring = getopt(argc, argv, "f:en:j:schm")) != -1) {
+        switch(optstring) {
+            case 'f':
+                this->picos_to_read = std::string(optarg);
+                this->has_pico_list = true;
+                break;
+            case 'e':
+                this->only_ep_finding = true;
+                break;
+            case 'n':
+                this->max_events = std::stoi(optarg);
+                this->max_events_set = true;
+                break;
+            case 'j':
+                this->job_id = std::string(optarg);
+                break;
+            case 's':
+                picos_to_read = "myfilelist.list";
+                has_pico_list = true;
+                break;
+            case 'c':
+                this->do_cuts = false;
+                break;
+            case 'm':
+                ROOT::EnableImplicitMT();
+                break;
+            case 'h':
+                std::cout << "Runs QA for Tristan's jet v2 analysis, targeting the isobar dataset\n";
+                std::cout << "\t-f\tList of picos to read\n";
+                std::cout << "\t-e\tOnly finds event plane, no jet finding\n";
+                std::cout << "\t-n\tNumber of events to run over\n";
+                std::cout << "\t-j\tJob ID to be appended to file name\n";
+                std::cout << "\t-c\tRun without QA cuts\n";
+                return -1;
+            default: break;
+        }
+    }
+    if (!this->has_pico_list) {
+        std::cout << "invoke with " << argv[0] << " -f {pico list}" << std::endl;
+        return -1;
+    }
+    return 0;
+    // std::cout << Form("Running %d events from %s%s\n\n", n, picos_to_read.c_str(), only_ep_finding ? ", just finding event plane" : "") << std::endl;
+}
+
+int QA_Manager::setup_io() {
+    return 0;
+}
+
+int QA_Manager::setup_cuts() {
     // Properties
     // Vertex Selection
     float vz_min = -35;
@@ -36,152 +112,40 @@ void setup_cuts(jetreader::Reader *reader, bool nocuts) {
     std::string bad_tower_list = "";
 
 
-    if (!nocuts) {
+    if (this->do_cuts) {
         // Apply reader properties
         if (bad_run_list != "") {
-            reader->eventSelector()->addBadRuns(bad_run_list);
+            this->reader->eventSelector()->addBadRuns(bad_run_list);
         }
 
         // Vertex
-        reader->eventSelector()->setVzRange(vz_min, vz_max);
-        reader->eventSelector()->setVrMax(vr_max);
+        this->reader->eventSelector()->setVzRange(vz_min, vz_max);
+        this->reader->eventSelector()->setVrMax(vr_max);
 
         // Tracks
-        reader->trackSelector()->setPtMax(track_pt_max);
-        reader->trackSelector()->setDcaMax(track_dca_max);
-        reader->trackSelector()->setNHitsMin(track_nhits_min);
-        reader->trackSelector()->setNHitsFracMin(track_nhits_frac_min);
-        reader->trackSelector()->rejectEventOnPtFailure(reject_track_on_fail);
+        this->reader->trackSelector()->setPtMax(track_pt_max);
+        this->reader->trackSelector()->setDcaMax(track_dca_max);
+        this->reader->trackSelector()->setNHitsMin(track_nhits_min);
+        this->reader->trackSelector()->setNHitsFracMin(track_nhits_frac_min);
+        this->reader->trackSelector()->rejectEventOnPtFailure(reject_track_on_fail);
 
         // Tower
         if (bad_tower_list != "") {
-            reader->towerSelector()->addBadTowers(bad_tower_list);
+            this->reader->towerSelector()->addBadTowers(bad_tower_list);
         }
-        reader->useHadronicCorrection(tower_use_hadronic_correction, tower_hadronic_correction_factor);
-        reader->useApproximateTrackTowerMatching(tower_use_approximate_track_tower_matching);
-        reader->towerSelector()->setEtMax(tower_et_max);
-        reader->towerSelector()->rejectEventOnEtFailure(reject_tower_on_fail);
+        this->reader->useHadronicCorrection(tower_use_hadronic_correction, tower_hadronic_correction_factor);
+        this->reader->useApproximateTrackTowerMatching(tower_use_approximate_track_tower_matching);
+        this->reader->towerSelector()->setEtMax(tower_et_max);
+        this->reader->towerSelector()->rejectEventOnEtFailure(reject_tower_on_fail);
 
     }
     
     // Centrality
-    reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Zr);
-    reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Ru);
+    this->reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Zr);
+    this->reader->centrality().loadCentralityDef(jetreader::CentDefId::Run18Ru);
     
-    reader->Init();
-}
-
-void setup_tree(TTree *tree, jet_tree_data *datum) {
-    // Initialize vectors
-    datum->num_entries = NUM_ENTRIES;
-    datum->num_hardcore_jets = 0; // Always initialize your variables... 
-    datum->hardcore_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->num_all_jets = 0;  // grr...
-    datum->all_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_z = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_constituents = (UInt_t*) malloc(NUM_ENTRIES * sizeof(UInt_t));
-    datum->triggers = (long*) malloc(NUM_ENTRIES * sizeof(long));
-
-    // Vertex Components
-    tree->Branch("vx", &datum->vx);
-    tree->Branch("vy", &datum->vy);
-    tree->Branch("vz", &datum->vz);
-    tree->Branch("vpd_vz", &datum->vpd_vz);
-
-    // Jet Components
-    tree->Branch("hardcore_jets_num", &datum->num_hardcore_jets);
-    tree->Branch("hardcore_jets_pt", datum->hardcore_jets_pt, "hardcore_jets_pt[hardcore_jets_num]/D");
-    tree->Branch("hardcore_jets_eta", datum->hardcore_jets_eta, "hardcore_jets_eta[hardcore_jets_num]/D");
-    tree->Branch("hardcore_jets_phi", datum->hardcore_jets_phi, "hardcore_jets_phi[hardcore_jets_num]/D");
-    tree->Branch("hardcore_jets_E", datum->hardcore_jets_E, "hardcore_jets_E[hardcore_jets_num]/D");
-    tree->Branch("hardcore_jets_subtracted_pt", datum->hardcore_jets_subtracted_pt, "hardcore_jets_subtracted_pt[hardcore_jets_num]/D");
-    tree->Branch("all_jets_num", &datum->num_all_jets);
-    tree->Branch("all_jets_pt", datum->all_jets_pt, "all_jets_pt[all_jets_num]/D");
-    tree->Branch("all_jets_eta", datum->all_jets_eta, "all_jets_eta[all_jets_num]/D");
-    tree->Branch("all_jets_phi", datum->all_jets_phi, "all_jets_phi[all_jets_num]/D");
-    tree->Branch("all_jets_E", datum->all_jets_E, "all_jets_E[all_jets_num]/D");
-    tree->Branch("all_jets_subtracted_pt", datum->all_jets_subtracted_pt, "all_jets_subtracted_pt[all_jets_num]/D");
-    tree->Branch("all_jets_z", datum->all_jets_z, "all_jets_z[all_jets_num]/D");
-    tree->Branch("all_jets_constituents", datum->all_jets_constituents, "all_jets_constituents[all_jets_num]/i");
-
-    // Collision information
-    tree->Branch("event_plane_east", &datum->event_plane_east);
-    tree->Branch("event_plane_west", &datum->event_plane_west);
-    tree->Branch("event_plane_full", &datum->event_plane_full);
-    tree->Branch("centrality16", &datum->centrality);
-
-    // System
-    tree->Branch("tofmult", &datum->tofmult);
-    tree->Branch("refmult3", &datum->refmult3);
-    tree->Branch("num_triggers", &datum->num_triggers);
-    tree->Branch("triggers", datum->triggers, "triggers[num_triggers]/L");
-    tree->Branch("run_number", &datum->run_number);
-    tree->Branch("bbc_east_rate", &datum->bbc_east_rate);
-    tree->Branch("bbc_west_rate", &datum->bbc_west_rate);
-}
-
-// There must be a good way to semi-automatically generate this list...
-void read_tree(TTree *tree, jet_tree_data *datum) {
-    // Initialize vectors
-    datum->num_entries = NUM_ENTRIES;
-    datum->hardcore_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->hardcore_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_eta = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_phi = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_E = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_subtracted_pt = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_z = (double*) malloc(NUM_ENTRIES * sizeof(double));
-    datum->all_jets_constituents = (UInt_t*) malloc(NUM_ENTRIES * sizeof(UInt_t));
-
-    // Vertex Components
-    tree->SetBranchAddress("vx", &datum->vx);
-    tree->SetBranchAddress("vy", &datum->vy);
-    tree->SetBranchAddress("vz", &datum->vz);
-    tree->SetBranchAddress("vpd_vz", &datum->vpd_vz);
-
-    // Jet Components
-    tree->SetBranchAddress("hardcore_jets_num", &datum->num_hardcore_jets);
-    tree->SetBranchAddress("hardcore_jets_pt", datum->hardcore_jets_pt);
-    tree->SetBranchAddress("hardcore_jets_eta", datum->hardcore_jets_eta);
-    tree->SetBranchAddress("hardcore_jets_phi", datum->hardcore_jets_phi);
-    tree->SetBranchAddress("hardcore_jets_E", datum->hardcore_jets_E);
-    tree->SetBranchAddress("hardcore_jets_subtracted_pt", datum->hardcore_jets_subtracted_pt);
-    tree->SetBranchAddress("all_jets_num", &datum->num_all_jets);
-    tree->SetBranchAddress("all_jets_pt", datum->all_jets_pt);
-    tree->SetBranchAddress("all_jets_eta", datum->all_jets_eta);
-    tree->SetBranchAddress("all_jets_phi", datum->all_jets_phi);
-    tree->SetBranchAddress("all_jets_E", datum->all_jets_E);
-    tree->SetBranchAddress("all_jets_subtracted_pt", datum->all_jets_subtracted_pt);
-    tree->SetBranchAddress("all_jets_z", datum->all_jets_z);
-    tree->SetBranchAddress("all_jets_constituents", datum->all_jets_constituents);
-
-    // Collision information
-    tree->SetBranchAddress("event_plane_east", &datum->event_plane_east);
-    tree->SetBranchAddress("event_plane_west", &datum->event_plane_west);
-    tree->SetBranchAddress("event_plane_full", &datum->event_plane_full);
-    tree->SetBranchAddress("centrality16", &datum->centrality);
-
-    std::vector<std::seed_seq::result_type> *test;
-
-    // System
-    tree->SetBranchAddress("tofmult", &datum->tofmult);
-    tree->SetBranchAddress("refmult3", &datum->refmult3);
-    // tree->SetBranchAddress("trigger_id", &test);
-    tree->SetBranchAddress("run_number", &datum->run_number);
-    tree->SetBranchAddress("bbc_east_rate", &datum->bbc_east_rate);
-    tree->SetBranchAddress("bbc_west_rate", &datum->bbc_west_rate);
+    this->reader->Init();
+    return 0;
 }
 
 void clear_vectors(jet_tree_data *datum) {

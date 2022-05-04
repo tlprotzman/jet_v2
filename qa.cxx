@@ -48,6 +48,8 @@
 // My includes
 #include "setup.h"
 #include "isobar_triggers.h"
+#include "event_tree.h"
+#include "jet_tree.h"
 
 double JET_PT_CUT = 5;
 double NMIP_MIN = 0.3;
@@ -58,77 +60,19 @@ double epd_mult(TClonesArray *epd_hits, int side=2);
 bool pileup_cut(int charged_particles, int tofmatch, int tofmult, int refmult3);
 
 int main(int argc, char **argv) {
-    // Input argument parsing
-    int optstring;
-    int n = kMaxInt;
-    bool only_ep_finding = false;
-    bool nocuts = false;
-    bool has_pico_list = false;
-    std::string jobid = "";
-    std::string picos_to_read;
-    while ((optstring = getopt(argc, argv, "f:en:j:sch")) != -1) {
-        switch(optstring) {
-            case 'f':
-                picos_to_read = std::string(optarg);
-                has_pico_list = true;
-                break;
-            case 'e':
-                only_ep_finding = true;
-                break;
-            case 'n':
-                n = std::stoi(optarg);
-                break;
-            case 'j':
-                jobid = std::string(optarg);
-                break;
-            case 's':
-                picos_to_read = "myfilelist.list";
-                has_pico_list = true;
-                break;
-            case 'c':
-                nocuts = true;
-                break;
-            case 'h':
-                std::cout << "Runs QA for Tristan's jet v2 analysis, targeting the isobar dataset\n";
-                std::cout << "\t-f\tList of picos to read\n";
-                std::cout << "\t-e\tOnly finds event plane, no jet finding\n";
-                std::cout << "\t-n\tNumber of events to run over\n";
-                std::cout << "\t-j\tJob ID to be appended to file name\n";
-                std::cout << "\t-c\tRun without QA cuts\n";
-                return 0;
-            default: break;
-        }
-    }
-    if (!has_pico_list) {
-        std::cout << "invoke with " << argv[0] << " -f {pico list}" << std::endl;
-        return -1;
-    }
-
-    std::cout << Form("Running %d events from %s%s\n\n", n, picos_to_read.c_str(), only_ep_finding ? ", just finding event plane" : "") << std::endl;
-    
-    // ROOT::EnableImplicitMT();
-
-    // PARAMETERS
-    int DEBUG_LEVEL = 0;
-    if (getenv("JR_DEBUG_LEVEL") != nullptr) {
-        DEBUG_LEVEL = atoi(getenv("JR_DEBUG_LEVEL"));
-    }
-    std::cout << "Running at debug level " << DEBUG_LEVEL << std::endl;
-    
-    std::string bad_run_list = "";
-
-
-    // INITIALIZATION
-    jetreader::Reader *reader = new jetreader::Reader(picos_to_read);
-    setup_cuts(reader, nocuts);
+    // Set up QA manager, controls processes, cuts, io, etc...
+    QA_Manager *manager = new QA_Manager(argc, argv);    
 
     
     // Trees
-    TFile *outfile = new TFile(Form("%sout.root", jobid.c_str()), "RECREATE");
+    TFile *outfile = new TFile(Form("%sout.root", manager->job_id.c_str()), "RECREATE");
     TTree *jet_data = new TTree("jet_data", "Jet Data");
     jet_data->SetDirectory(outfile);
-    jet_tree_data datum;
-    setup_tree(jet_data, &datum);    
+    
+    Event_Tree *event_tree = new Event_Tree(jet_data, "eventwise");
+    Jet_Tree *hardcore_jet_tree = new Jet_Tree(jet_data, "hardcore_jets");
+    Jet_Tree *jet_tree = new Jet_Tree(jet_data, "all_jets");
+      
     
     // Set up jet finding
     double jet_r = 0.3;
@@ -167,18 +111,18 @@ int main(int argc, char **argv) {
 
     // Event Loop
     int processed_events = 0;
-    while (reader->next()) {
+    while (manager->reader->next()) {
         processed_events++;
         if (processed_events % 1000 == 0) {
             std::cout << "Processed " << processed_events << " events" << std::endl;
         }
-        if (processed_events > n){
+        if (manager->max_events_set && processed_events > manager->max_events) {
             break;
         }
 
-        StPicoEvent *event = reader->picoDst()->event();
+        StPicoEvent *event = manager->reader->picoDst()->event();
 
-        if (reader->centrality16() == -1) { // skip runs we can't determine centrality for
+        if (manager->reader->centrality16() == -1) { // skip runs we can't determine centrality for
             continue;
         }
 
@@ -186,26 +130,26 @@ int main(int argc, char **argv) {
         // datum.trigger_id = event->triggerIds();
         bool is_minbias = false;
         bool is_bht1_vpd30 = false;
-        datum.num_triggers = 0;
+        event_tree->num_triggers = 0;
         for (auto t : event->triggerIds()) {
             if (trigger_names.triggers[t] == trigger_names.minbias) {
                 is_minbias = true;
             } else if (trigger_names.triggers[t] == trigger_names.bht1_vpd30) {
                 is_bht1_vpd30 = true;
             }
-            datum.triggers[datum.num_triggers] = t;
-            datum.num_triggers++;
-            if (datum.num_entries <= datum.num_triggers) {
+            event_tree->triggers[event_tree->num_triggers] = t;
+            event_tree->num_triggers++;
+            if (event_tree->num_entries <= event_tree->num_triggers) {
                 std::cerr << "WARNING: NOT ENOUGH SPACE FOR ALL TRIGGERS" << std::endl;
             }
         }
 
-        if (!only_ep_finding && !is_bht1_vpd30) {   // Only run analysis on bht1_vpd30 trigger - feels weird
+        if (!manager->only_ep_finding && !is_bht1_vpd30) {   // Only run analysis on bht1_vpd30 trigger - feels weird
             continue;
         }
 
         // Find event plane
-        if (only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
+        if (manager->only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
             continue;
         }
         // std::cout << "Minbias: " << is_minbias << "\tbht1_vpd30: " << is_bht1_vpd30 << "\n";
@@ -215,32 +159,32 @@ int main(int argc, char **argv) {
             continue;
         }
         
-        datum.run_number = event->runId();
+        event_tree->run_number = event->runId();
 
         TVector3 primary_vertex = event->primaryVertex();
-        datum.vx = event->primaryVertex().X();
-        datum.vy = event->primaryVertex().Y();
-        datum.vz = event->primaryVertex().Z();
-        datum.vpd_vz = event->vzVpd();
-        datum.refmult3 = event->refMult3();
-        datum.tofmatch = event->nBTOFMatch();
-        datum.tofmult = event->btofTrayMultiplicity();
-        datum.bbc_east_rate = event->bbcEastRate();
-        datum.bbc_west_rate = event->bbcWestRate();
-        datum.centrality = reader->centrality16();
+        event_tree->vx = event->primaryVertex().X();
+        event_tree->vy = event->primaryVertex().Y();
+        event_tree->vz = event->primaryVertex().Z();
+        event_tree->vpd_vz = event->vzVpd();
+        event_tree->refmult3 = event->refMult3();
+        event_tree->tofmatch = event->nBTOFMatch();
+        event_tree->tofmult = event->btofTrayMultiplicity();
+        event_tree->bbc_east_rate = event->bbcEastRate();
+        event_tree->bbc_west_rate = event->bbcWestRate();
+        event_tree->centrality = manager->reader->centrality16();
 
-        qa_hist.vz->Fill(datum.vz, event->vzVpd());
-        qa_hist.vr->Fill(datum.vx, datum.vy);
-        qa_hist.pileup->Fill(datum.refmult3, datum.tofmult);
-        qa_hist.tofmult->Fill(datum.tofmult);
-        qa_hist.bbc_rate->Fill(datum.bbc_east_rate, datum.bbc_west_rate);
-        qa_hist.centrality->Fill(datum.centrality);
+        qa_hist.vz->Fill(event_tree->vz, event->vzVpd());
+        qa_hist.vr->Fill(event_tree->vx, event_tree->vy);
+        qa_hist.pileup->Fill(event_tree->refmult3, event_tree->tofmult);
+        qa_hist.tofmult->Fill(event_tree->tofmult);
+        qa_hist.bbc_rate->Fill(event_tree->bbc_east_rate, event_tree->bbc_west_rate);
+        qa_hist.centrality->Fill(event_tree->centrality);
         
        
-        TClonesArray *epd_hits = reader->picoDst()->picoArray(8);
+        TClonesArray *epd_hits = manager->reader->picoDst()->picoArray(8);
         double nMips_sum = epd_mult(epd_hits);
-        qa_hist.nMips->Fill(datum.refmult3, nMips_sum); // save nmips for jet events too?
-        StEpdEpInfo ep_info = ep_finder->Results(epd_hits, primary_vertex, datum.centrality);
+        qa_hist.nMips->Fill(event_tree->refmult3, nMips_sum); // save nmips for jet events too?
+        StEpdEpInfo ep_info = ep_finder->Results(epd_hits, primary_vertex, event_tree->centrality);
         ep_hist.east_uncorrected->Fill(ep_info.EastRawPsi(2));
         ep_hist.west_uncorrected->Fill(ep_info.WestRawPsi(2));
         ep_hist.east_phi_corrected->Fill(ep_info.EastPhiWeightedPsi(2));
@@ -248,18 +192,17 @@ int main(int argc, char **argv) {
         ep_hist.east_phi_psi_corrected->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2));
         ep_hist.west_phi_psi_corrected->Fill(ep_info.WestPhiWeightedAndShiftedPsi(2));
         ep_hist.ep_correlation->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2), ep_info.WestPhiWeightedAndShiftedPsi(2));
-        ep_hist.epd_resolution->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2) - ep_info.WestPhiWeightedAndShiftedPsi(2), reader->centrality16());
-        datum.event_plane_east = ep_info.EastPhiWeightedAndShiftedPsi(2);
-        datum.event_plane_west = ep_info.WestPhiWeightedAndShiftedPsi(2);
-        datum.event_plane_full = ep_info.FullPhiWeightedAndShiftedPsi(2);
-        if (only_ep_finding) {
+        ep_hist.epd_resolution->Fill(ep_info.EastPhiWeightedAndShiftedPsi(2) - ep_info.WestPhiWeightedAndShiftedPsi(2), manager->reader->centrality16());
+        event_tree->ep_east = ep_info.EastPhiWeightedAndShiftedPsi(2);
+        event_tree->ep_west = ep_info.WestPhiWeightedAndShiftedPsi(2);
+        if (manager->only_ep_finding) {
             // jet_data->Fill();
             continue;
         }
         
 
 
-        std::vector<fastjet::PseudoJet> tracks = reader->pseudojets();
+        std::vector<fastjet::PseudoJet> tracks = manager->reader->pseudojets();
         std::vector<fastjet::PseudoJet> hardcore_tracks;
         for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {    // Let's just play with tpc tracks for now
             jetreader::VectorInfo track_info = track->user_info<jetreader::VectorInfo>();
@@ -285,7 +228,7 @@ int main(int argc, char **argv) {
         
         jet_background_estimator.set_particles(tracks);
         
-        clear_vectors(&datum);
+        // clear_vectors(&datum);
         for (fastjet::PseudoJet jet : hardcore_jets) {  
             if (jet.pt() < JET_PT_CUT) {
                 break;
@@ -341,7 +284,8 @@ int main(int argc, char **argv) {
     save_histograms(&qa_hist, &ep_hist, outfile);
     outfile->Close();
     // delete jet_data;
-    cleanup(&datum);
+    // cleanup(&datum);
+    delete manager;
 }
 
 

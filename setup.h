@@ -7,6 +7,8 @@
 #include "TFile.h"
 
 #include <vector>
+#include <string>
+#include <fstream>
 
 #include "fastjet/PseudoJet.hh"
 #include "fastjet/tools/JetMedianBackgroundEstimator.hh"
@@ -36,8 +38,42 @@
 15            0-  5%
 */
 
-// Tree variables
 
+class QA_Manager {
+private:
+    // Process selection
+    bool do_cuts;
+    bool has_pico_list;
+    std::string picos_to_read;
+
+    // File IO
+    int debug_level;
+    // std::ostream debug;
+
+    // Cuts
+
+    // Jet reader tools
+
+public:
+    bool max_events_set;
+    int max_events;
+    bool only_ep_finding;
+    std::string job_id;
+    TFile out_file;
+
+    jetreader::Reader *reader;
+
+    QA_Manager(int argc, char** argv);
+    ~QA_Manager();
+
+    int setup_tasks(int argc, char** argv);
+    int setup_io();
+    int setup_cuts();
+    int setup_trees();
+};
+
+
+// Tree variables
 typedef struct {
     double jet_eta, jet_phi;
     double jet_hardcore_momentum, jet_momentum, jet_momentum_medium_subtracted;
@@ -100,7 +136,7 @@ typedef struct {
     TH2 *epd_resolution; 
 } ep_histograms;
 
-void setup_cuts(jetreader::Reader *reader, bool nocuts);
+// void setup_cuts(jetreader::Reader *reader, bool nocuts);
 void setup_tree(TTree *tree, jet_tree_data *datum);
 void read_tree(TTree *tree, jet_tree_data *datum);
 void clear_vectors(jet_tree_data *datum);
