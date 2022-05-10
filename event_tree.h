@@ -1,3 +1,6 @@
+#ifndef EVENT_TREE_H
+#define EVENT_TREE_H
+
 #include "tree_manager.h"
 
 class Event_Tree: public Tree_Manager {
@@ -33,3 +36,5 @@ class Event_Tree: public Tree_Manager {
 
         
 };
+
+#endif // EVENT_TREE_H

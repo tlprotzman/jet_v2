@@ -69,9 +69,12 @@ int main(int argc, char **argv) {
     TTree *jet_data = new TTree("jet_data", "Jet Data");
     jet_data->SetDirectory(outfile);
     
-    Event_Tree *event_tree = new Event_Tree(jet_data, "eventwise");
-    Jet_Tree *hardcore_jet_tree = new Jet_Tree(jet_data, "hardcore_jets");
-    Jet_Tree *jet_tree = new Jet_Tree(jet_data, "all_jets");
+    Event_Tree *event_tree = new Event_Tree(jet_data, "event");
+    event_tree->writeable_tree();
+    Jet_Tree *hardcore_jet_tree = new Jet_Tree(jet_data, "jets");
+    hardcore_jet_tree->writeable_tree();
+    Jet_Tree *jet_tree = new Jet_Tree(jet_data, "hc_jets");
+    jet_tree->writeable_tree();
       
     
     // Set up jet finding
@@ -116,7 +119,7 @@ int main(int argc, char **argv) {
         if (processed_events % 1000 == 0) {
             std::cout << "Processed " << processed_events << " events" << std::endl;
         }
-        if (manager->max_events_set && processed_events > manager->max_events) {
+        if (manager->max_events_set && processed_events >= manager->max_events) {
             break;
         }
 
@@ -228,20 +231,31 @@ int main(int argc, char **argv) {
         
         jet_background_estimator.set_particles(tracks);
         
-        // clear_vectors(&datum);
+        jet_tree->clear_vectors();
+        hardcore_jet_tree->clear_vectors();
         for (fastjet::PseudoJet jet : hardcore_jets) {  
             if (jet.pt() < JET_PT_CUT) {
                 break;
             }
-            datum.hardcore_jets_phi[datum.num_hardcore_jets] = jet.phi();
-            datum.hardcore_jets_eta[datum.num_hardcore_jets] = jet.eta();
-            datum.hardcore_jets_pt[datum.num_hardcore_jets] = jet.pt();
-            datum.hardcore_jets_subtracted_pt[datum.num_all_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-            datum.hardcore_jets_E[datum.num_hardcore_jets] = jet.E();
-            datum.num_hardcore_jets++;
-            if (datum.num_entries <= datum.num_hardcore_jets) {
+            if (jet.constituents().size() < 2) {
+                continue;
+            }
+            if (hardcore_jet_tree->num_entries <= hardcore_jet_tree->num_jets) {
                 break;
             }
+            hardcore_jet_tree->jet_phi[hardcore_jet_tree->num_jets] = jet.phi();
+            hardcore_jet_tree->jet_eta[hardcore_jet_tree->num_jets] = jet.eta();
+            hardcore_jet_tree->jet_pt[hardcore_jet_tree->num_jets] = jet.pt();
+            hardcore_jet_tree->jet_pt_median_subtracted[hardcore_jet_tree->num_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
+            hardcore_jet_tree->jet_E[hardcore_jet_tree->num_jets] = jet.E();
+            hardcore_jet_tree->jet_area_pt[hardcore_jet_tree->num_jets] = jet.area_4vector().pt();
+            hardcore_jet_tree->rho = jet_background_estimator.rho();
+            hardcore_jet_tree->num_jets++;
+            double max_pt = 0;
+            for (auto constituent : jet.constituents()) {
+                max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
+            }
+            hardcore_jet_tree->jet_charged_z[hardcore_jet_tree->num_jets] = max_pt / jet.pt();
         }
 
         for (fastjet::PseudoJet jet : all_jets) {
@@ -255,25 +269,27 @@ int main(int argc, char **argv) {
             if (jet.constituents().size() < 2) {
                 continue;
             }
-            if (datum.num_entries <= datum.num_all_jets) {
+            if (jet_tree->num_entries <= jet_tree->num_jets) {
                 continue;
             }
-            datum.all_jets_phi[datum.num_all_jets] = jet.phi();
-            datum.all_jets_eta[datum.num_all_jets] = jet.eta();
-            datum.all_jets_pt[datum.num_all_jets] = jet.pt();
-            datum.all_jets_subtracted_pt[datum.num_all_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-            datum.all_jets_E[datum.num_all_jets] = jet.E();
-            datum.all_jets_constituents[datum.num_all_jets] = jet.constituents().size();
+            jet_tree->jet_phi[jet_tree->num_jets] = jet.phi();
+            jet_tree->jet_eta[jet_tree->num_jets] = jet.eta();
+            jet_tree->jet_pt[jet_tree->num_jets] = jet.pt();
+            jet_tree->jet_pt_median_subtracted[jet_tree->num_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
+            jet_tree->jet_E[jet_tree->num_jets] = jet.E();
+            jet_tree->jet_area_pt[jet_tree->num_jets] = jet.area_4vector().pt();
+            jet_tree->rho = jet_background_estimator.rho();
+            jet_tree->num_constituents[jet_tree->num_jets] = jet.constituents().size();
             double max_pt = 0;
             for (auto constituent : jet.constituents()) {
                 max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
             }
-            datum.all_jets_z[datum.num_all_jets] = max_pt / jet.pt();
-            datum.num_all_jets++;
+            jet_tree->jet_charged_z[jet_tree->num_jets] = max_pt / jet.pt();
+            jet_tree->num_jets++;
         }
-        jet_data->Fill();
-        
+        event_tree->fill_tree();
     }
+
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();
 
