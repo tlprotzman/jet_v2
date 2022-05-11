@@ -50,8 +50,9 @@
 #include "isobar_triggers.h"
 #include "event_tree.h"
 #include "jet_tree.h"
+#include "jet_helper.h"
 
-double JET_PT_CUT = 5;
+// double JET_PT_CUT = 5;
 double NMIP_MIN = 0.3;
 double NMIP_MAX = 3;
 
@@ -71,29 +72,15 @@ int main(int argc, char **argv) {
     
     Event_Tree *event_tree = new Event_Tree(jet_data, "event");
     event_tree->writeable_tree();
-    Jet_Tree *hardcore_jet_tree = new Jet_Tree(jet_data, "jets");
+    Jet_Tree *hardcore_jet_tree = new Jet_Tree(jet_data, "hc");
     hardcore_jet_tree->writeable_tree();
-    Jet_Tree *jet_tree = new Jet_Tree(jet_data, "hc_jets");
+    Jet_Tree *jet_tree = new Jet_Tree(jet_data, "all");
     jet_tree->writeable_tree();
       
     
     // Set up jet finding
-    double jet_r = 0.3;
-    double ghost_maxrap = 1;
-    fastjet::GhostedAreaSpec area_spec(ghost_maxrap);
-    fastjet::AreaDefinition jet_area(fastjet::active_area, area_spec);
-    fastjet::AreaDefinition jet_area_background(fastjet::active_area_explicit_ghosts, fastjet::GhostedAreaSpec(ghost_maxrap));
-
-    fastjet::JetDefinition jet_def(fastjet::antikt_algorithm, jet_r);
-    fastjet::JetDefinition jet_subtraction_jet_def(fastjet::kt_algorithm, jet_r);
-
-    fastjet::Selector jet_selector = fastjet::SelectorAbsRapMax(1) * (!fastjet::SelectorNHardest(2));
-    fastjet::JetMedianBackgroundEstimator jet_background_estimator = fastjet::JetMedianBackgroundEstimator(jet_selector, jet_subtraction_jet_def, jet_area_background);
-
-    fastjet::Subtractor jet_background_subtractor(&jet_background_estimator);
-
-    jet_background_subtractor.set_use_rho_m(true);
-    jet_background_subtractor.set_safe_mass(true);
+    Jet_Helper *jet_helper = new Jet_Helper(0.3);
+    Jet_Helper *hardcore_jet_helper = new Jet_Helper(0.3);
 
     // Histograms
     qa_histograms qa_hist;
@@ -125,10 +112,6 @@ int main(int argc, char **argv) {
 
         StPicoEvent *event = manager->reader->picoDst()->event();
 
-        if (manager->reader->centrality16() == -1) { // skip runs we can't determine centrality for
-            continue;
-        }
-
         // Event Info
         // datum.trigger_id = event->triggerIds();
         bool is_minbias = false;
@@ -156,6 +139,10 @@ int main(int argc, char **argv) {
             continue;
         }
         // std::cout << "Minbias: " << is_minbias << "\tbht1_vpd30: " << is_bht1_vpd30 << "\n";
+
+        if (manager->reader->centrality16() == -1) { // skip runs we can't determine centrality for
+            continue;
+        }
 
         // Pileup cut
         if (!pileup_cut(event->numberOfPrimaryTracks(), event->nBTOFMatch(), event->btofTrayMultiplicity(), event->refMult3())) {
@@ -222,71 +209,22 @@ int main(int argc, char **argv) {
                 }
             }
         }
+        // std::cout << "Regular track count: " << tracks.size() << std::endl;
+        // std::cout << "Hardcore track count: " << hardcore_tracks.size() << std::endl;
 
-        fastjet::ClusterSequenceArea hc_cs = fastjet::ClusterSequenceArea(hardcore_tracks, jet_def, jet_area);
-        fastjet::ClusterSequenceArea cs = fastjet::ClusterSequenceArea(tracks, jet_def, jet_area);
 
-        std::vector<fastjet::PseudoJet> hardcore_jets = fastjet::sorted_by_pt(hc_cs.inclusive_jets());
-        std::vector<fastjet::PseudoJet> all_jets = fastjet::sorted_by_pt(cs.inclusive_jets());
+        std::vector<fastjet::PseudoJet> all_jets = jet_helper->find_jets(tracks);
+        jet_helper->set_background_particles(tracks);
+        jet_helper->fill_jet_tree(all_jets, jet_tree);
         
-        jet_background_estimator.set_particles(tracks);
+        std::vector<fastjet::PseudoJet> hardcore_jets = hardcore_jet_helper->find_jets(hardcore_tracks);
+        hardcore_jet_helper->set_background_particles(hardcore_tracks);
+        hardcore_jet_helper->fill_jet_tree(hardcore_jets, hardcore_jet_tree);
         
-        jet_tree->clear_vectors();
-        hardcore_jet_tree->clear_vectors();
-        for (fastjet::PseudoJet jet : hardcore_jets) {  
-            if (jet.pt() < JET_PT_CUT) {
-                break;
-            }
-            if (jet.constituents().size() < 2) {
-                continue;
-            }
-            if (hardcore_jet_tree->num_entries <= hardcore_jet_tree->num_jets) {
-                break;
-            }
-            hardcore_jet_tree->jet_phi[hardcore_jet_tree->num_jets] = jet.phi();
-            hardcore_jet_tree->jet_eta[hardcore_jet_tree->num_jets] = jet.eta();
-            hardcore_jet_tree->jet_pt[hardcore_jet_tree->num_jets] = jet.pt();
-            hardcore_jet_tree->jet_pt_median_subtracted[hardcore_jet_tree->num_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-            hardcore_jet_tree->jet_E[hardcore_jet_tree->num_jets] = jet.E();
-            hardcore_jet_tree->jet_area_pt[hardcore_jet_tree->num_jets] = jet.area_4vector().pt();
-            hardcore_jet_tree->rho = jet_background_estimator.rho();
-            hardcore_jet_tree->num_jets++;
-            double max_pt = 0;
-            for (auto constituent : jet.constituents()) {
-                max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
-            }
-            hardcore_jet_tree->jet_charged_z[hardcore_jet_tree->num_jets] = max_pt / jet.pt();
-        }
-
-        for (fastjet::PseudoJet jet : all_jets) {
-            qa_hist.jet_loc->Fill(jet.eta(), jet.phi());
-            qa_hist.jet_pt_spectra->Fill(jet.pt());
-            double subtracted_pt = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-            qa_hist.jet_subtracted_pt_spectra->Fill(subtracted_pt);
-            if (subtracted_pt < JET_PT_CUT) {
-                continue;
-            }
-            if (jet.constituents().size() < 2) {
-                continue;
-            }
-            if (jet_tree->num_entries <= jet_tree->num_jets) {
-                continue;
-            }
-            jet_tree->jet_phi[jet_tree->num_jets] = jet.phi();
-            jet_tree->jet_eta[jet_tree->num_jets] = jet.eta();
-            jet_tree->jet_pt[jet_tree->num_jets] = jet.pt();
-            jet_tree->jet_pt_median_subtracted[jet_tree->num_jets] = jet.pt() - jet_background_estimator.rho() * jet.area_4vector().pt();
-            jet_tree->jet_E[jet_tree->num_jets] = jet.E();
-            jet_tree->jet_area_pt[jet_tree->num_jets] = jet.area_4vector().pt();
-            jet_tree->rho = jet_background_estimator.rho();
-            jet_tree->num_constituents[jet_tree->num_jets] = jet.constituents().size();
-            double max_pt = 0;
-            for (auto constituent : jet.constituents()) {
-                max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
-            }
-            jet_tree->jet_charged_z[jet_tree->num_jets] = max_pt / jet.pt();
-            jet_tree->num_jets++;
-        }
+        
+        // std::cout << "Regular jet cout: " << jet_tree->num_jets << std::endl;
+        // std::cout << "Hardcore jet cout: " << hardcore_jet_tree->num_jets << std::endl;
+        
         event_tree->fill_tree();
     }
 
@@ -302,6 +240,8 @@ int main(int argc, char **argv) {
     // delete jet_data;
     // cleanup(&datum);
     delete manager;
+    delete jet_helper;
+    delete hardcore_jet_helper;
 }
 
 

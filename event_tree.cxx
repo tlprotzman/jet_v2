@@ -15,7 +15,6 @@ Event_Tree::~Event_Tree() {
 }
 
 int Event_Tree::writeable_tree() {
-    std::cout << "wtffffffff: " << Form("%s_vx", this->tag) << std::endl;
     this->tree->Branch(Form("%s_vx", this->tag), &this->vx);
     this->tree->Branch(Form("%s_vy", this->tag), &this->vy);
     this->tree->Branch(Form("%s_vz", this->tag), &this->vz);

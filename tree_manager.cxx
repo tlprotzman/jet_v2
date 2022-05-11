@@ -12,14 +12,11 @@
 Tree_Manager::Tree_Manager() {};
 
 Tree_Manager::Tree_Manager(TTree *_tree, std::string _tag) {
-    std::cerr << "made it here" << std::endl;
-
     this->tree = _tree;
     if (this->tree == nullptr) {
         throw std::runtime_error(Form("%s:%d tree is null", __FILE__, __LINE__));
     }
     this->tag = _tag.c_str();
-    std::cout << "tag: " << this->tag << std::endl;
 };
 
 Tree_Manager::~Tree_Manager() {};
