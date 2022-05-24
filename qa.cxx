@@ -61,6 +61,7 @@ double epd_mult(TClonesArray *epd_hits, int side=2);
 bool pileup_cut(int charged_particles, int tofmatch, int tofmult, int refmult3);
 
 int main(int argc, char **argv) {
+    ROOT::EnableImplicitMT();
     // Set up QA manager, controls processes, cuts, io, etc...
     QA_Manager *manager = new QA_Manager(argc, argv);    
 
@@ -113,7 +114,6 @@ int main(int argc, char **argv) {
         StPicoEvent *event = manager->reader->picoDst()->event();
 
         // Event Info
-        // datum.trigger_id = event->triggerIds();
         bool is_minbias = false;
         bool is_bht1_vpd30 = false;
         event_tree->num_triggers = 0;
@@ -138,7 +138,6 @@ int main(int argc, char **argv) {
         if (manager->only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
             continue;
         }
-        // std::cout << "Minbias: " << is_minbias << "\tbht1_vpd30: " << is_bht1_vpd30 << "\n";
 
         if (manager->reader->centrality16() == -1) { // skip runs we can't determine centrality for
             continue;
@@ -224,8 +223,9 @@ int main(int argc, char **argv) {
         
         // std::cout << "Regular jet cout: " << jet_tree->num_jets << std::endl;
         // std::cout << "Hardcore jet cout: " << hardcore_jet_tree->num_jets << std::endl;
-        
-        event_tree->fill_tree();
+        if (jet_tree->num_jets) {
+            event_tree->fill_tree();
+        }
     }
 
     std::cout << "Count: " << processed_events << std::endl;

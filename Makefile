@@ -28,15 +28,15 @@ LIBS += -lStEpdUtil
 LIBS += -lNetx
 
 qa_object_list = qa.o setup.o isobar_triggers.o tree_manager.o jet_tree.o event_tree.o jet_helper.o
-post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o
-analysis_object_list = calculate_v2.o setup.o histogram_package.o histogram_data.o
+post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o 
+analysis_object_list = calculate_v2.o setup.o histogram_package.o histogram_data.o tree_manager.o jet_tree.o event_tree.o
 
 qa_objects = $(qa_object_list:%.o=build/%.o)
 post_objects = $(post_object_list:%.o=build/%.o)
 analysis_objects = $(analysis_object_list:%.o=build/%.o)
 
 
-all: qa #post_qa analysis
+all: qa analysis # post_qa
 
 build/%.o: %.cxx 
 	$(CXX) -c $(CXXFLAGS) $(INCFLAGS) $< -o $@

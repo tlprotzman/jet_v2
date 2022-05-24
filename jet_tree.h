@@ -6,7 +6,7 @@
 class Jet_Tree: public Tree_Manager {
     public:
         UInt_t num_jets;
-        UInt_t *num_constituents;
+        uint *num_constituents;
         double *jet_pt;
         double *jet_pt_median_subtracted;
         double *jet_eta;

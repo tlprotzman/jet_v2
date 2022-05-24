@@ -36,4 +36,23 @@ int Event_Tree::writeable_tree() {
 
 }
 
-int Event_Tree::readable_tree() {}
+int Event_Tree::readable_tree() {
+    this->tree->SetBranchAddress(Form("%s_vx", this->tag), &this->vx);
+    this->tree->SetBranchAddress(Form("%s_vy", this->tag), &this->vy);
+    this->tree->SetBranchAddress(Form("%s_vz", this->tag), &this->vz);
+    this->tree->SetBranchAddress(Form("%s_vz_vpd", this->tag), &this->vpd_vz);
+    
+    this->tree->SetBranchAddress(Form("%s_ep_east", this->tag), &this->ep_east);
+    this->tree->SetBranchAddress(Form("%s_ep_west", this->tag), &this->ep_west);
+
+    this->tree->SetBranchAddress(Form("%s_run_number", this->tag), &this->run_number);
+    this->tree->SetBranchAddress(Form("%s_num_triggers", this->tag), &this->num_triggers);
+    // this->tree->SetBranchAddress(Form("%s_triggers", this->tag), this->triggers);
+
+    this->tree->SetBranchAddress(Form("%s_tofmult", this->tag), &this->tofmult);
+    this->tree->SetBranchAddress(Form("%s_tofmatch", this->tag), &this->tofmatch);
+    this->tree->SetBranchAddress(Form("%s_refmult3", this->tag), &this->refmult3);
+    this->tree->SetBranchAddress(Form("%s_centrality", this->tag), &this->centrality);
+    this->tree->SetBranchAddress(Form("%s_bbc_east_rate", this->tag), &this->bbc_east_rate);
+    this->tree->SetBranchAddress(Form("%s_bbc_west_rate", this->tag), &this->bbc_west_rate);
+}

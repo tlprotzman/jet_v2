@@ -69,7 +69,7 @@ void Jet_Helper::fill_jet_tree(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tr
         if (jet.constituents().size() < 2) {
             continue;
         }
-        if (jet_tree->num_entries <= jet_tree->num_jets) {
+        if (jet_tree->num_entries < jet_tree->num_jets) {
             continue;
         }
         total_pt += jet.pt();
@@ -88,5 +88,6 @@ void Jet_Helper::fill_jet_tree(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tr
         jet_tree->jet_charged_z[jet_tree->num_jets] = max_pt / jet.pt();
         jet_tree->num_jets++;
     }
+    // std::cout << "found "<< jet_tree->num_jets << " jets" << std::endl;
     // std::cout << "Total pt: " << total_pt << std::endl;
 }

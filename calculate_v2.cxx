@@ -24,6 +24,8 @@ tlprotzman@gmail.com
 #include "setup.h"
 #include "histogram_data.h"
 #include "histogram_package.h"
+#include "jet_tree.h"
+#include "event_tree.h"
 
 #include <iostream>
 #include <fstream>
@@ -40,8 +42,15 @@ int main(int argc, char **argv) {
     }
     files.close();
 
-    jet_tree_data datum;
-    read_tree(chain, &datum);
+    // jet_tree_data datum;
+    // read_tree(chain, &datum);
+    Event_Tree *event_tree = new Event_Tree(chain, "event");
+    event_tree->readable_tree();
+    Jet_Tree *hardcore_jet_tree = new Jet_Tree(chain, "hc");
+    hardcore_jet_tree->readable_tree();
+    Jet_Tree *jet_tree = new Jet_Tree(chain, "all");
+    jet_tree->readable_tree();
+    // return -4;
 
     size_t num_pt_bins = 8;
     double pt_bin_upper_bound[8] = {5, 10, 15, 20, 25, 30, 35, 40};
@@ -64,40 +73,52 @@ int main(int argc, char **argv) {
         // if (n > 1000) {
         //     break;
         // }
-        if (n % 100000 == 0) {
+        if (n % 10/*0000*/ == 0) {
             std::cout << "Processed " << n << " events" << std::endl;
         }
         chain->GetEvent(n);
-        if (datum.centrality < 6 || datum.centrality > 9) {  // accept between 50-30% central
+        // std::cout << "centrality:\t" << event_tree->centrality << std::endl;
+        // if (event_tree->centrality < 6 || event_tree->centrality > 9) {  // accept between 50-30% central
+        //     continue;
+        // }
+
+        UInt_t selected_num_jets = jet_tree->num_jets;
+        if (selected_num_jets > 5) {
             continue;
         }
-
-        UInt_t selected_num_jets = datum.num_all_jets;
-        double *selected_jet_phi = datum.all_jets_phi;
-        double *selected_jet_subtracted_pt = datum.all_jets_subtracted_pt;
-        if (use_hardcore) {
-            selected_num_jets = datum.num_hardcore_jets;
-            selected_jet_phi = datum.hardcore_jets_phi;
-            selected_jet_subtracted_pt = datum.hardcore_jets_subtracted_pt;
-        }
+        double *selected_jet_phi = jet_tree->jet_phi;
+        double *selected_jet_subtracted_pt = jet_tree->jet_pt_median_subtracted;
+        // if (use_hardcore) {                                          // Todo - Reimplement hardcore jets
+        //     selected_num_jets = datum.num_hardcore_jets;
+        //     selected_jet_phi = datum.hardcore_jets_phi;
+        //     selected_jet_subtracted_pt = datum.hardcore_jets_subtracted_pt;
+        // }
 
 
         for (int i = 0; i < selected_num_jets; i++) {
-            // if (datum.all_jets_pt[i] < 10) {
+            // continue;
+            // if (datum.all_jets_pt[i] < 10) {         // pT cut
             //     continue;
             // }
-            if (!use_hardcore && datum.all_jets_z[i] > 0.95) {
+            if (!use_hardcore && jet_tree->jet_charged_z[i] > 0.95) {       // Jet z cut
                 continue;
             }
-            double jet_phi = selected_jet_phi[i];
-            double relative = abs(jet_phi - datum.event_plane_full);
-            double other_relative = jet_phi - datum.event_plane_full;
+
+
+            double jet_phi = jet_tree->jet_phi[i];
+            double relative = abs(jet_phi - event_tree->ep_east);   // TODO: should be better?
+            double other_relative = jet_phi - event_tree->ep_east;
+
+
             if (other_relative < 0) {
                 other_relative += TMath::TwoPi();
             }
             int pt_bin = 0;
+
             while (pt_bin < num_pt_bins && selected_jet_subtracted_pt[i] > pt_bin_upper_bound[pt_bin]) {pt_bin++;}   // Populate the appropriate momentum bin
             jet_relative_phi_unfolded[pt_bin]->Fill(other_relative);
+
+
             if (relative < 0) {
                 relative += TMath::TwoPi();
             }
@@ -109,7 +130,7 @@ int main(int argc, char **argv) {
             num_events++;
             jet_relative_phi[pt_bin]->Fill(relative);
             calculated_v2[pt_bin] += cos(2 * relative);
-            ep_resolution += cos(2 * (datum.event_plane_east - datum.event_plane_west));
+            ep_resolution += cos(2 * (event_tree->ep_east - event_tree->ep_west));
         }
     }
     
