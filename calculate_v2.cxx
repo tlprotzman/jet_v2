@@ -41,7 +41,7 @@ const int num_pt_bins = 4;
 // Forward declarations
 TChain* load_files(std::string file_list);
 TH3* setup_histogram();
-void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, TH3 *relative_angle, double *ep_resolution);
+void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, TH3 *relative_angle, double *ep_resolution);
 void save_histogram(TH3 *hist, std::string outfile_name);
 int calculate_v2(TH1 *dphi, int cent_bin, int pt_bin);
 double*** bin_loop(TH3 *relative, double *ep_resolution);
@@ -71,7 +71,7 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_cent_bins; i++) {
         ep_resolution[i] = 0;
     }
-    event_loop(chain, event_tree, jet_tree, relative_angle, ep_resolution);
+    event_loop(chain, event_tree, jet_tree, hardcore_jet_tree, relative_angle, ep_resolution);
 
     double ***v2 = bin_loop(relative_angle, ep_resolution);
     plot_v2_values(v2);
@@ -125,7 +125,23 @@ TH3* setup_histogram() {
     return h;
 }
 
-void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, TH3 *relative_angle, double *ep_resolution) {
+bool hardcore_matched(Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, int index) {     // Currently hardcore jets can be reused...
+    double j_phi = jet_tree->jet_phi[index];
+    double j_eta = jet_tree->jet_eta[index];
+    for (uint i = 0; i < hardcore_jet_tree->num_jets; i++) {
+        double d_phi = abs(j_phi - hardcore_jet_tree->jet_phi[i]);
+        double d_eta = abs(j_eta - hardcore_jet_tree->jet_eta[i]);
+        double dr = sqrt(d_phi * d_phi + d_eta * d_eta);
+        if (dr < 0.3) {
+            // std::cout << "matched!\n";
+            return true;
+        }
+    }
+    // std::cout << "not matched :(\n";
+    return false;
+}
+
+void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, TH3 *relative_angle, double *ep_resolution) {
     int *n_events = (int*) malloc(num_cent_bins * sizeof(int));
     for (int i = 0; i < num_cent_bins; i++) {
         n_events[i] = 0;
@@ -145,9 +161,12 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, TH3 *
         }
         n_events[event_tree->centrality]++;
         ep_resolution[event_tree->centrality] += cos(2 * (event_tree->ep_east - event_tree->ep_west));
-        
+
         // For each jet in the event...
         for (int i = 0; i < jet_tree->num_jets; i++) {
+            if (!hardcore_matched(jet_tree, hardcore_jet_tree, i)) {
+                continue;
+            }
             if (jet_tree->jet_charged_z[i] > 0.95) {    // Skip jets mostly composed of single track
                 continue;
             }
@@ -163,7 +182,7 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, TH3 *
                 relative -= TMath::Pi();
             }
             double background = jet_tree->rho;
-            double assumed_background_v2 = 0.05;
+            double assumed_background_v2 = 0.055;
             background = background * (1 + assumed_background_v2 * cos(2 * (relative)));
             relative_angle->Fill(relative, jet_tree->jet_pt[i] - background * jet_tree->jet_area_pt[i], event_tree->centrality);
         }
@@ -292,7 +311,7 @@ void plot_v2_values(double ***v2) {
     }
 
     v2_graphs[0]->Draw("alp");
-    v2_graphs[0]->SetTitle("Jet v_{2}");
+    v2_graphs[0]->SetTitle("Jet v_{2}, hardcore matched");
     v2_graphs[0]->GetXaxis()->SetTitle("p_{T}");
     v2_graphs[0]->GetYaxis()->SetTitle("v_{2}");
     v2_graphs[0]->GetYaxis()->SetRangeUser(-0.2, 0.4);
@@ -312,8 +331,8 @@ void plot_v2_values(double ***v2) {
 
     // }
     // legend2->Draw();
-    c->SaveAs("plots/v2_main.png");
-    c->SaveAs("plots/v2_main.c");
+    c->SaveAs("plots/v2_main_hc.png");
+    c->SaveAs("plots/v2_main_hc.c");
 }
 
 void plot_ep_reso(double *ep_reso) {
