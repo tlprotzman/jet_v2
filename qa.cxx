@@ -195,6 +195,10 @@ int main(int argc, char **argv) {
         std::vector<fastjet::PseudoJet> hardcore_tracks;
         for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {    // Let's just play with tpc tracks for now
             jetreader::VectorInfo track_info = track->user_info<jetreader::VectorInfo>();
+            if (track_info.isBemcTower()) {
+                std::cout << "found tower " << track_info.towerId() << std::endl;
+                
+            }
             if ((!track_info.isPrimary())) {
                 tracks.erase(track);
                 track--;

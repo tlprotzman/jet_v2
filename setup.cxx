@@ -133,6 +133,9 @@ int QA_Manager::setup_cuts() {
         if (bad_tower_list != "") {
             this->reader->towerSelector()->addBadTowers(bad_tower_list);
         }
+        for (uint32_t i = 0; i <= 4800; i++) {   // Don't use any towers
+            this->reader->towerSelector()->addBadTower(i);
+        }
         this->reader->useHadronicCorrection(tower_use_hadronic_correction, tower_hadronic_correction_factor);
         this->reader->useApproximateTrackTowerMatching(tower_use_approximate_track_tower_matching);
         this->reader->towerSelector()->setEtMax(tower_et_max);
