@@ -1,6 +1,5 @@
 #ifndef JET_HELPER_H
 #define JET_HELPER_H
-
 // Probably don't need all of these, don't really feel like figuring that out though...
 #include "fastjet/AreaDefinition.hh"
 #include "fastjet/ClusterSequence.hh"
@@ -45,6 +44,5 @@ class Jet_Helper {
         void fill_jet_tree(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tree *jet_tree);
 
 };
-
 
 #endif // JET_HELPER_H

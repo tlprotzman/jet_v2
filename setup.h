@@ -123,6 +123,9 @@ typedef struct {
     TH1 *tofmult;
     TH2 *bbc_rate;
     TH2 *nMips;
+    TH2 *rho;
+    TH2 *v2;
+    TH2 *v3;
 } qa_histograms;
 
 typedef struct {

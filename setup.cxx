@@ -197,6 +197,17 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     ep_hist->epd_resolution = new TH2D("ep_resolution", "ep_resolution", 100, -1 * TMath::Pi(), TMath::Pi(), 17, -0.5, 16.5);
     ep_hist->epd_resolution->GetXaxis()->SetTitle("#Psi_{ep}^{east}-#Psi_{ep}^{west}");
     ep_hist->epd_resolution->GetYaxis()->SetTitle("Centrality Bin");
+
+    // Particle Anisotropy
+    qa_hist->rho = new TH2D("eventwise_background", "Event #rho_{ch}", 250, 0, 25, 17, -0.5, 16.5);
+    qa_hist->rho->GetXaxis()->SetTitle("#rho_{0}");
+    qa_hist->rho->GetYaxis()->SetTitle("Centrality");
+    qa_hist->v2 = new TH2D("eventwise_v2", "Event v_{2, ch}", 250, -0.5, 0.5, 17, -0.5, 16.5);
+    qa_hist->v2->GetXaxis()->SetTitle("v_{2}");
+    qa_hist->v2->GetYaxis()->SetTitle("Centrality");
+    qa_hist->v3 = new TH2D("eventwise_v3", "Event v_{3, ch}", 250, -0.5, 0.5, 17, -0.5, 16.5);
+    qa_hist->v3->GetXaxis()->SetTitle("v_{3}");
+    qa_hist->v3->GetYaxis()->SetTitle("centrality");
 }
 
 void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outfile) {
@@ -250,6 +261,13 @@ void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outf
     ep_hist->ep_correlation->Write();
     ep_hist->epd_resolution->SetDirectory(outfile);
     ep_hist->epd_resolution->Write();
+
+    qa_hist->rho->SetDirectory(outfile);
+    qa_hist->rho->Write();
+    qa_hist->v2->SetDirectory(outfile);
+    qa_hist->v2->Write();
+    qa_hist->v3->SetDirectory(outfile);
+    qa_hist->v3->Write();
 }
 
 void cleanup(jet_tree_data *datum) {

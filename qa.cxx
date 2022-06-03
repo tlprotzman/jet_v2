@@ -51,6 +51,7 @@
 #include "event_tree.h"
 #include "jet_tree.h"
 #include "jet_helper.h"
+#include "particle_anisotropy.h"
 
 // double JET_PT_CUT = 5;
 double NMIP_MIN = 0.3;
@@ -61,7 +62,7 @@ double epd_mult(TClonesArray *epd_hits, int side=2);
 bool pileup_cut(int charged_particles, int tofmatch, int tofmult, int refmult3);
 
 int main(int argc, char **argv) {
-    ROOT::EnableImplicitMT();
+    // ROOT::EnableImplicitMT();
     // Set up QA manager, controls processes, cuts, io, etc...
     QA_Manager *manager = new QA_Manager(argc, argv);    
 
@@ -80,8 +81,8 @@ int main(int argc, char **argv) {
       
     
     // Set up jet finding
-    Jet_Helper *jet_helper = new Jet_Helper(0.3);
-    Jet_Helper *hardcore_jet_helper = new Jet_Helper(0.3);
+    Jet_Helper *jet_helper = new Jet_Helper(0.2);
+    Jet_Helper *hardcore_jet_helper = new Jet_Helper(0.2);
 
     // Histograms
     qa_histograms qa_hist;
@@ -215,6 +216,18 @@ int main(int argc, char **argv) {
         std::vector<fastjet::PseudoJet> all_jets = jet_helper->find_jets(tracks);
         jet_helper->set_background_particles(tracks);
         jet_helper->fill_jet_tree(all_jets, jet_tree);
+        particle_anisotropy flow_description;
+        flow_description.rho = -999;
+        flow_description.v2 = -999;
+        flow_description.v3 = -999;
+        // std::cout << "num jets: " << all_jets.size() << std::endl;
+        if (all_jets.size() > 0) {
+            calculate_v2(tracks, all_jets[0], (ep_info.EastPhiWeightedAndShiftedPsi(1) + ep_info.WestPhiWeightedAndShiftedPsi(1)) / 2.0, flow_description, manager->reader->centrality16());
+        }
+        // printf("Rho: %.4f\tV2: %.4f\tV3: %.04f\n", flow_description.rho, flow_description.v2, flow_description.v3);
+        qa_hist.rho->Fill(flow_description.rho, manager->reader->centrality16());
+        qa_hist.v2->Fill(flow_description.v2, manager->reader->centrality16());
+        qa_hist.v3->Fill(flow_description.v3, manager->reader->centrality16());
         
         std::vector<fastjet::PseudoJet> hardcore_jets = hardcore_jet_helper->find_jets(hardcore_tracks);
         hardcore_jet_helper->set_background_particles(hardcore_tracks);
