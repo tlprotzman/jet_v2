@@ -1,14 +1,14 @@
 #include "histogram_package.h"
 #include "histogram_data.h"
 
-#include "TROOT.h"
-#include "Rtypes.h"
-#include "TH1.h"
-#include "TCanvas.h"
-#include "TLegend.h"
-#include "THStack.h"
-#include "TObject.h"
-#include "TStyle.h"
+#include <TROOT.h>
+#include <Rtypes.h>
+#include <TH1.h>
+#include <TCanvas.h>
+#include <TLegend.h>
+#include <THStack.h>
+#include <TObject.h>
+#include <TStyle.h>
 
 #include <string>
 #include <iostream>

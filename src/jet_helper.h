@@ -1,15 +1,15 @@
 #ifndef JET_HELPER_H
 #define JET_HELPER_H
 // Probably don't need all of these, don't really feel like figuring that out though...
-#include "fastjet/AreaDefinition.hh"
-#include "fastjet/ClusterSequence.hh"
-#include "fastjet/ClusterSequenceArea.hh"
-#include "fastjet/JetDefinition.hh"
-#include "fastjet/PseudoJet.hh"
-#include "fastjet/tools/BackgroundEstimatorBase.hh"
-#include "fastjet/tools/GridMedianBackgroundEstimator.hh"
-#include "fastjet/tools/JetMedianBackgroundEstimator.hh"
-#include "fastjet/tools/Subtractor.hh"
+#include <fastjet/AreaDefinition.hh>
+#include <fastjet/ClusterSequence.hh>
+#include <fastjet/ClusterSequenceArea.hh>
+#include <fastjet/JetDefinition.hh>
+#include <fastjet/PseudoJet.hh>
+#include <fastjet/tools/BackgroundEstimatorBase.hh>
+#include <fastjet/tools/GridMedianBackgroundEstimator.hh>
+#include <fastjet/tools/JetMedianBackgroundEstimator.hh>
+#include <fastjet/tools/Subtractor.hh>
 
 #include <vector>
 

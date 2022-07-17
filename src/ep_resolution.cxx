@@ -7,15 +7,15 @@ tlp220@lehigh.edu
 April 22, 2022
 */
 
-#include "TROOT.h"
+#include <TROOT.h>
 
-#include "TCanvas.h"
-#include "TFile.h"
-#include "TGraph.h"
-#include "TH1D.h"
-#include "TH2D.h"
-#include "TPad.h"
-#include "TStyle.h"
+#include <TCanvas.h>
+#include <TFile.h>
+#include <TGraph.h>
+#include <TH1D.h>
+#include <TH2D.h>
+#include <TPad.h>
+#include <TStyle.h>
 
 #include <stdint.h>
 #include <iostream>

@@ -1,14 +1,14 @@
 #include "setup.h"
 
-#include "jetreader/reader/reader.h"
-#include "jetreader/reader/centrality_def.h"
-#include "TTree.h"
-#include "TH1D.h"
-#include "TH2D.h"
-#include "TH3D.h"
-#include "TMath.h"
-#include "TFile.h"
-#include "TROOT.h"
+#include <jetreader/reader/reader.h>
+#include <jetreader/reader/centrality_def.h>
+#include <TTree.h>
+#include <TH1D.h>
+#include <TH2D.h>
+#include <TH3D.h>
+#include <TMath.h>
+#include <TFile.h>
+#include <TROOT.h>
 
 #include <stdexcept>
 #include <string>

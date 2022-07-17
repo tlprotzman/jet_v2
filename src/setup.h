@@ -1,11 +1,11 @@
 #ifndef SETUP_H
 #define SETUP_H
 
-#include "TTree.h"
-#include "TH1.h"
-#include "TH2.h"
-#include "TH3.h"
-#include "TFile.h"
+#include <TTree.h>
+#include <TH1.h>
+#include <TH2.h>
+#include <TH3.h>
+#include <TFile.h>
 
 #include <vector>
 #include <string>

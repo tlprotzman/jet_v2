@@ -3,10 +3,10 @@
 
 #include "histogram_data.h"
 
-#include "TROOT.h"
-#include "Rtypes.h"
-#include "TH1.h"
-#include "TObject.h"
+#include <TROOT.h>
+#include <Rtypes.h>
+#include <TH1.h>
+#include <TObject.h>
 
 #include <string>
 

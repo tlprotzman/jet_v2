@@ -1,7 +1,7 @@
 #include "jet_tree.h"
 
-#include "TROOT.h"
-#include "TTree.h"
+#include <TROOT.h>
+#include <TTree.h>
 #include <iostream>
 
 Jet_Tree::Jet_Tree(TTree *_tree, std::string _tag) : Tree_Manager(_tree, _tag) {

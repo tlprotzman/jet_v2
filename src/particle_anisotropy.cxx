@@ -7,7 +7,7 @@
 #include <TCanvas.h>
 #include <TLatex.h>
 
-#include "fastjet/PseudoJet.hh"
+#include <fastjet/PseudoJet.hh>
 
 #include <vector>
 

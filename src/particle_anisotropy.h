@@ -1,7 +1,7 @@
 #ifndef PARTICLE_V2_H
 #define PARTICLE_V2_H
 
-#include "fastjet/PseudoJet.hh"
+#include <fastjet/PseudoJet.hh>
 
 #include <TH1.h>
 

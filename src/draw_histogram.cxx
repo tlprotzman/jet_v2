@@ -9,10 +9,10 @@ Let's see if I can make a reasonably generic plotting macro that I'm happy with.
 
 #include "draw_histogram.h"
 
-#include "TH1.h"
-#include "THStack.h"
-#include "TLegend.h"
-#include "TCanvas.h"
+#include <TH1.h>
+#include <THStack.h>
+#include <TLegend.h>
+#include <TCanvas.h>
 
 
 void draw_th1(histogram_package_s *histograms) {

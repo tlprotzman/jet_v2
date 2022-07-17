@@ -2,9 +2,9 @@
 #define HISTOGRAM_DATA_H
 
 
-#include "TROOT.h"
-#include "Rtypes.h"
-#include "TH1.h"
+#include <TROOT.h>
+#include <Rtypes.h>
+#include <TH1.h>
 
 class histogram_data {
     public:

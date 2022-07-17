@@ -1,8 +1,8 @@
 #include "histogram_data.h"
 
-#include "TROOT.h"
-#include "Rtypes.h"
-#include "TH1.h"
+#include <TROOT.h>
+#include <Rtypes.h>
+#include <TH1.h>
 
 histogram_data::histogram_data() {
     histogram_data(nullptr, "");

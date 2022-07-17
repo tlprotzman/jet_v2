@@ -1,7 +1,7 @@
 #include "event_tree.h"
 
-#include "TROOT.h"
-#include "TTree.h"
+#include <TROOT.h>
+#include <TTree.h>
 
 #include <iostream>
 
