@@ -2,9 +2,9 @@
 
 #include "TROOT.h"
 #include "TTree.h"
+#include <iostream>
 
 Jet_Tree::Jet_Tree(TTree *_tree, std::string _tag) : Tree_Manager(_tree, _tag) {
-    // Tree_Manager(_tree, _tag);
     if (this->tree == nullptr) {
         throw std::runtime_error(Form("%s:%d tree is null", __FILE__, __LINE__));
     }
@@ -50,18 +50,21 @@ int Jet_Tree::writeable_tree() {
 }
 
 int Jet_Tree::readable_tree() {
+    std::cout << "loading branch with tag " << this->tag << std::endl;
     this->tree->SetBranchAddress(Form("%s_num_jets", this->tag), &this->num_jets);
     this->tree->SetBranchAddress(Form("%s_num_constituents", this->tag), this->num_constituents);
     this->tree->SetBranchAddress(Form("%s_jet_pt", this->tag), this->jet_pt);
     this->tree->SetBranchAddress(Form("%s_jet_pt_median_subtracted", this->tag), this->jet_pt_median_subtracted);
     this->tree->SetBranchAddress(Form("%s_jet_eta", this->tag), this->jet_eta);
     this->tree->SetBranchAddress(Form("%s_jet_phi", this->tag), this->jet_phi);
+    std::cout << "wtf fuck you linking just workkkkk" << std::endl;
     this->tree->SetBranchAddress(Form("%s_jet_E", this->tag), this->jet_E);
     this->tree->SetBranchAddress(Form("%s_jet_charged_z", this->tag), this->jet_charged_z);
     this->tree->SetBranchAddress(Form("%s_jet_neutral_z", this->tag), this->jet_neutral_z);
     this->tree->SetBranchAddress(Form("%s_jet_neutral_fraction", this->tag), this->jet_neutral_fraction);
     this->tree->SetBranchAddress(Form("%s_jet_area_pt", this->tag), this->jet_area_pt);
     this->tree->SetBranchAddress(Form("%s_rho", this->tag), &this->rho);
+    return 0;
 };
 
 void Jet_Tree::clear_vectors() {

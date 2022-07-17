@@ -11,6 +11,7 @@
 #include "TGraph.h"
 #include "TGraphErrors.h"
 #include "TLegend.h"
+#include "TRandom3.h"
 
 #include "jet_tree.h"
 #include "event_tree.h"
@@ -36,7 +37,7 @@ const int num_cent_bins = 8;
 char *cent_bins[num_cent_bins] = {"70-80%", "60-70%", "50-60%", "40-50%", "30-40%", "20-30%", "10-20%", "0-10%",};
 // int colors[num_cent_bins] = {kRed, kOrange, kBlue, kViolet};
 
-const int num_pt_bins = 4;
+const int num_pt_bins = 3;
 
 // Forward declarations
 TChain* load_files(std::string file_list);
@@ -48,19 +49,22 @@ double*** bin_loop(TH3 *relative, double *ep_resolution);
 void draw_plot(TH1 *dphi, int cent_bin, int pt_bin);
 void plot_v2_values(double ***v2);
 void plot_ep_reso(double *ep_reso);
+void plot_particle_v2(double ***particle_v2);
+
 
 int main(int argc, char **argv) {
-    TChain *chain = load_files("in.list");
+    // TChain *chain = load_files("in.list");
+    TChain *chain = load_files("single.list");
 
     
 
     // Set up trees for reading
     Event_Tree *event_tree = new Event_Tree(chain, "event");    // Event wise quantities
     event_tree->readable_tree();
-    Jet_Tree *hardcore_jet_tree = new Jet_Tree(chain, "hc");    // Hardcore jets
-    hardcore_jet_tree->readable_tree();
     Jet_Tree *jet_tree = new Jet_Tree(chain, "all");            // All jets
     jet_tree->readable_tree();
+    Jet_Tree *hardcore_jet_tree = new Jet_Tree(chain, "hc");    // Hardcore jets
+    hardcore_jet_tree->readable_tree();
     // return 0;
 
     // Create momentum and centrality bins
@@ -76,7 +80,7 @@ int main(int argc, char **argv) {
     double ***v2 = bin_loop(relative_angle, ep_resolution);
     plot_v2_values(v2);
     plot_ep_reso(ep_resolution);
-
+    // plot_particle_v2(v2);
 
     save_histogram(relative_angle, "relative_angles.root");
     // delete relative_angle;
@@ -91,7 +95,7 @@ int main(int argc, char **argv) {
 TChain* load_files(std::string file_list) {
     // Load trees to analyze
     TChain *chain = new TChain("jet_data");
-    std::ifstream files("in.list");
+    std::ifstream files(file_list);
     std::string filePath;
     while (files >> filePath) {
         chain->AddFile(filePath.c_str());
@@ -101,13 +105,13 @@ TChain* load_files(std::string file_list) {
 }
 
 TH3* setup_histogram() {
-    int n_phi_bins = 50;
+    int n_phi_bins = 200;
     double phi_low = 0;
     double phi_high = TMath::Pi();
 
     int n_pt_bins = num_pt_bins;
     double pt_low = 0;
-    double pt_high = 10 * n_pt_bins; // 5 GeV bins
+    double pt_high = 10 * n_pt_bins; // 10 GeV bins
 
     int n_centrality_bins = num_cent_bins;
     double centrality_low = -0.5;
@@ -151,8 +155,8 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_T
         // if (n > 1000000) {
         //     return;
         // }
-        if (n % 100000 == 0) {
-            printf("Processed %.1fM events\n", n / 1000000.);
+        if (n % 1000 == 0) {
+            printf("Processed %.3fM events\n", n / 1000000.);
         }
         chain->GetEvent(n); // Get the next events
 
@@ -164,26 +168,27 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_T
 
         // For each jet in the event...
         for (int i = 0; i < jet_tree->num_jets; i++) {
-            if (!hardcore_matched(jet_tree, hardcore_jet_tree, i)) {
-                continue;
-            }
-            if (jet_tree->jet_charged_z[i] > 0.95) {    // Skip jets mostly composed of single track
-                continue;
-            }
+            // if (!hardcore_matched(jet_tree, hardcore_jet_tree, i)) {
+            //     continue;
+            // }
+            // if (jet_tree->jet_charged_z[i] > 0.95) {    // Skip jets mostly composed of single track
+            //     continue;
+            // }
             if (abs(jet_tree->jet_eta[i]) > 0.7) {      // Skip jets within R of detector edge
                 continue;
             }
 
-            double relative = jet_tree->jet_phi[i] - event_tree->ep_east;
+            double avg_ep = event_tree->ep_east;
+            double relative = jet_tree->jet_phi[i] - avg_ep;
             if (relative < 0) {
                 relative += TMath::TwoPi();
             }
             if (relative > TMath::Pi()) {
                 relative -= TMath::Pi();
             }
-            double background = jet_tree->rho;
-            double assumed_background_v2 = 0.055;
-            background = background * (1 + assumed_background_v2 * cos(2 * (relative)));
+            double background = 0;
+            // double assumed_background_v2 = 0.055;
+            // background = background * (1 + assumed_background_v2 * cos(2 * (relative)));
             relative_angle->Fill(relative, jet_tree->jet_pt[i] - background * jet_tree->jet_area_pt[i], event_tree->centrality);
         }
     }
@@ -208,10 +213,10 @@ int calculate_v2(TH1 *dphi, int cent_bin, int pt_bin) {
     if (dphi->GetEntries() == 0) {
         return 0;
     }
-    TF1 *v2_fit = new TF1(Form("v2_bin_%d_%d", cent_bin, pt_bin), "[0] * (1 + [1] * 2 * cos(2*x))", 0, TMath::Pi()); // Fit distribution on [0, pi]
+    TF1 *v2_fit = new TF1(Form("v2_bin_%d_%d", cent_bin, pt_bin), "[0] * (1 + [1] * 2 * cos(2*x))", 0, TMath::TwoPi()); // Fit distribution on [0, pi]
     v2_fit->SetParameters(1, 0);
     v2_fit->SetParNames("offset", "v2");
-    dphi->Fit(Form("v2_bin_%d_%d", cent_bin, pt_bin)); // Run fitting
+    dphi->Fit(v2_fit); // Run fitting
     draw_plot(dphi, cent_bin, pt_bin);
     return 1;
 }
@@ -284,7 +289,7 @@ void plot_v2_values(double ***v2) {
     std::vector<TGraphErrors*> v2_graphs;
     bool first = true;
     for (int cent_bin = 0; cent_bin < num_cent_bins; cent_bin ++) {
-        std::cout << "look at me!" << v2[1][cent_bin][1] << std::endl;
+        std::cout << "cent bin: " << cent_bin << "\tv2: " << v2[0][cent_bin][0] << std::endl;
         TGraphErrors *v2_plot = new TGraphErrors(num_pt_bins, x, v2[0][cent_bin], ex, v2[1][cent_bin]);
         // TGraphErrors *v2_plot = new TGraphErrors(num_pt_bins, x, x, ex, ex);
         v2_plot->SetLineColor(colors[cent_bin]);
@@ -350,7 +355,7 @@ void plot_ep_reso(double *ep_reso) {
     }
     TCanvas *c = new TCanvas("", "", 1000, 1000);
     ep_reso_graph->Draw("apw");
-    gPad->SetGrid(1, 1);
+    c->SetGrid(1, 1);
     ep_reso_graph->GetXaxis()->SetLabelOffset(0.04);
     ep_reso_graph->GetXaxis()->SetLabelSize(0.025);
 
@@ -360,6 +365,44 @@ void plot_ep_reso(double *ep_reso) {
 
     c->SaveAs("plots/ep_reso.png");
     c->SaveAs("plots/ep_reso.c");
+
+}
+
+void plot_particle_v2(double ***particle_v2) {
+    double x[num_cent_bins];
+    double ex[num_cent_bins];
+    for (int i = 0; i < num_cent_bins; i++) {
+        x[i] = i;
+        ex[i] = 0.5;
+        std::cout << "Bin: " << i << "\tReso: " << particle_v2[0][i][0] << std::endl;
+    }
+    double *y = (double*)malloc(num_cent_bins * sizeof(double));
+    double *ey = (double*)malloc(num_cent_bins * sizeof(double));
+    for (int i = 0; i < num_cent_bins; i++) {
+        y[i] = particle_v2[0][i][0];
+        ey[i] = particle_v2[1][i][0];
+    }
+
+    TGraphErrors *particle_v2_graph = new TGraphErrors(num_cent_bins, x, y, ex, ey);
+    particle_v2_graph->SetMarkerSize(1);
+    particle_v2_graph->SetMarkerStyle(kFullCircle);
+    // particle_v2_graph->GetXaxis()->SetNdivisions(100 + (num_cent_bins / 2));
+    // for (uint32_t i = 0; i < num_cent_bins / 2; i++) {
+        // particle_v2_graph->GetXaxis()->ChangeLabel(i + 1, 315, -1, -1, -1, -1, cent_bins[2 * i]);
+    // }
+    TCanvas *c = new TCanvas("", "", 1000, 1000);
+    c->SetMargin(0.12, 0.12, 0.12, 0.12);
+    particle_v2_graph->Draw("apw");
+    gPad->SetGrid(1, 1);
+    particle_v2_graph->GetXaxis()->SetLabelOffset(0.04);
+    particle_v2_graph->GetXaxis()->SetLabelSize(0.025);
+
+    particle_v2_graph->SetTitle("Particle V_{2}");
+    particle_v2_graph->GetXaxis()->SetTitle("Centrality");
+    particle_v2_graph->GetYaxis()->SetTitle("V_{2}");
+
+    c->SaveAs("plots/particle_v2.png");
+    c->SaveAs("plots/particle_v2.c");
 
 }
 

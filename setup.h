@@ -4,6 +4,7 @@
 #include "TTree.h"
 #include "TH1.h"
 #include "TH2.h"
+#include "TH3.h"
 #include "TFile.h"
 
 #include <vector>
@@ -126,6 +127,7 @@ typedef struct {
     TH2 *rho;
     TH2 *v2;
     TH2 *v3;
+    TH3 *particle_v2; // one dimension for angle, one dimension for momentum, one dimension for centrality
 } qa_histograms;
 
 typedef struct {

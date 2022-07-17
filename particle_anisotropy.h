@@ -7,13 +7,28 @@
 
 #include <vector>
 
-struct particle_anisotropy {
-    double rho;
-    double v2;
-    double v3;
-};
+// struct particle_anisotropy {
+//     double rho;
+//     double v2;
+//     double v3;
+// };
 
-void calculate_v2(std::vector<fastjet::PseudoJet> &tracks, fastjet::PseudoJet &leading_jet, double event_plane, particle_anisotropy &flow_parameters, int centrality);
-void print_particle_distribution(TH1 *hist);
+// void calculate_v2(std::vector<fastjet::PseudoJet> &tracks, fastjet::PseudoJet &leading_jet, double event_plane, particle_anisotropy &flow_parameters, int centrality);
+// void print_particle_distribution(TH1 *hist);
+
+class particle_anisotropy {
+    public:
+        double rho;
+        double v2;
+        double v3;
+
+        particle_anisotropy();
+        ~particle_anisotropy();
+
+        void calculate_v2(std::vector<fastjet::PseudoJet> &tracks, fastjet::PseudoJet &leading_jet, double event_plane, particle_anisotropy &flow_parameters, int centrality);
+        
+    private:
+        void print_particle_distribution(TH1 *hist);
+};
 
 #endif // PARTICLE_V2_H

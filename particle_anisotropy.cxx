@@ -15,7 +15,15 @@ int JET_NUMBER = 0;
 
 double JET_R = 0.2; // This shouldn't be hardcoded...
 
-void calculate_v2(std::vector<fastjet::PseudoJet> &tracks, fastjet::PseudoJet &leading_jet, double event_plane, particle_anisotropy &flow_parameters, int centrality) {
+particle_anisotropy::particle_anisotropy() {
+    return;
+}
+
+particle_anisotropy::~particle_anisotropy() {
+    return;
+}
+
+void particle_anisotropy::calculate_v2(std::vector<fastjet::PseudoJet> &tracks, fastjet::PseudoJet &leading_jet, double event_plane, particle_anisotropy &flow_parameters, int centrality) {
     double j_eta = leading_jet.eta();
     double j_phi = leading_jet.phi();
 
@@ -40,16 +48,16 @@ void calculate_v2(std::vector<fastjet::PseudoJet> &tracks, fastjet::PseudoJet &l
     }
 
     // Extract flow parameters
-    TF1 *flow_description = new TF1("flow_description", "[0] * (1 + 2 * ([1] * cos(2 * x) + [2] * cos(3 * x)))", 0, TMath::TwoPi(), "Q");
-    flow_description->SetParNames("rho_0", "v_2", "v_3");
+    TF1 *flow_description = new TF1("flow_description", "[0] * (1 + 2 * ([1] * cos(2 * x)))", 0, TMath::TwoPi(), "Q");
+    flow_description->SetParNames("rho_0", "v_2");
     
     particle_distribution->Fit(flow_description, "q");
     flow_parameters.rho = flow_description->GetParameter("rho_0");
     flow_parameters.v2 = flow_description->GetParameter("v_2");
-    flow_parameters.v3 = flow_description->GetParameter("v_3");
+    flow_parameters.v3 = 0;//flow_description->GetParameter("v_3");
 
     if (centrality == 0) {
-        print_particle_distribution(particle_distribution);
+        this->print_particle_distribution(particle_distribution);
         JET_NUMBER++;
     }
 
@@ -60,7 +68,7 @@ void calculate_v2(std::vector<fastjet::PseudoJet> &tracks, fastjet::PseudoJet &l
     return;
 }
 
-void print_particle_distribution(TH1 *hist) {
+void particle_anisotropy::print_particle_distribution(TH1 *hist) {
     TCanvas *c = new TCanvas("", "", 1000, 1000);
     hist->Draw("e");
     TF1 *fit = hist->GetFunction("flow_description");
@@ -71,14 +79,14 @@ void print_particle_distribution(TH1 *hist) {
     TF1 *v2 = new TF1("v2_term", Form("%f * (1 + 2 * %f * cos(2 * x))", fit->GetParameter("rho_0"), fit->GetParameter("v_2")), 0, TMath::TwoPi());
     v2->SetLineColor(kBlue);
     v2->Draw("c same");
-    TF1 *v3 = new TF1("v3_term", Form("%f * (1 + 2 * %f * cos(3 * x))", fit->GetParameter("rho_0"), fit->GetParameter("v_3")), 0, TMath::TwoPi());
-    v3->SetLineColor(kGreen+3);
-    v3->Draw("c same");
+    // TF1 *v3 = new TF1("v3_term", Form("%f * (1 + 2 * %f * cos(3 * x))", fit->GetParameter("rho_0"), fit->GetParameter("v_3")), 0, TMath::TwoPi());
+    // v3->SetLineColor(kGreen+3);
+    // v3->Draw("c same");
 
     fit->GetXaxis()->SetTitle("#Delta#phi");
     fit->GetYaxis()->SetTitle("#rho_{charged} (GeV/c)");
 
-    TLatex *description = new TLatex(0.15, 0.2, Form("#rho_{0}: %.5f     v_{2}: %.5f     v_{3}: %.5f", fit->GetParameter("rho_0"), fit->GetParameter("v_2"), fit->GetParameter("v_3")));
+    TLatex *description = new TLatex(0.15, 0.2, Form("#rho_{0}: %.5f     v_{2}: %.5f     v_{3}: %.5f", fit->GetParameter("rho_0"), fit->GetParameter("v_2"), 0/*fit->GetParameter("v_3")*/));
     description->SetTextSize(0.03);
     description->SetNDC();
 
@@ -87,7 +95,7 @@ void print_particle_distribution(TH1 *hist) {
 
     delete constant;
     delete v2;
-    delete v3;
+    // delete v3;
     delete description;
 
     delete c;

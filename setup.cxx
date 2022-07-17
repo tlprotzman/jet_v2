@@ -5,6 +5,7 @@
 #include "TTree.h"
 #include "TH1D.h"
 #include "TH2D.h"
+#include "TH3D.h"
 #include "TMath.h"
 #include "TFile.h"
 #include "TROOT.h"
@@ -211,6 +212,11 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     qa_hist->v3 = new TH2D("eventwise_v3", "Event v_{3, ch}", 250, -0.5, 0.5, 17, -0.5, 16.5);
     qa_hist->v3->GetXaxis()->SetTitle("v_{3}");
     qa_hist->v3->GetYaxis()->SetTitle("centrality");
+    
+    qa_hist->particle_v2 = new TH3D("particle_v2", "Particle v^{obs}_{2}", 250, 0, TMath::Pi(), 30, 0, 10, 17, -0.5, 16.5);
+    qa_hist->particle_v2->GetXaxis()->SetTitle("#frac{dN}{d#Delta#Phi}");
+    qa_hist->particle_v2->GetYaxis()->SetTitle("p_{T}");
+    qa_hist->particle_v2->GetZaxis()->SetTitle("Centrality");
 }
 
 void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outfile) {
@@ -271,6 +277,8 @@ void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outf
     qa_hist->v2->Write();
     qa_hist->v3->SetDirectory(outfile);
     qa_hist->v3->Write();
+    qa_hist->particle_v2->SetDirectory(outfile);
+    qa_hist->particle_v2->Write();
 }
 
 void cleanup(jet_tree_data *datum) {

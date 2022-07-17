@@ -15,7 +15,7 @@ class Tree_Manager {
         const char *tag;
 
     public:
-        const int num_entries = 10;
+        const int num_entries = 1000;
         
         Tree_Manager();
         Tree_Manager(TTree *_tree, std::string _tag);

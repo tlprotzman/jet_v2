@@ -91,3 +91,26 @@ void Jet_Helper::fill_jet_tree(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tr
     // std::cout << "found "<< jet_tree->num_jets << " jets" << std::endl;
     // std::cout << "Total pt: " << total_pt << std::endl;
 }
+
+void Jet_Helper::fill_jet_tree_particles(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tree *jet_tree) {
+    jet_tree->clear_vectors();
+    double total_pt = 0;
+    for (fastjet::PseudoJet jet : all_jets) {
+        if (jet_tree->num_entries < jet_tree->num_jets) {
+            continue;
+        }
+        total_pt += jet.pt();
+        jet_tree->jet_phi[jet_tree->num_jets] = jet.phi();
+        jet_tree->jet_eta[jet_tree->num_jets] = jet.eta();
+        jet_tree->jet_pt[jet_tree->num_jets] = jet.pt();
+        jet_tree->jet_pt_median_subtracted[jet_tree->num_jets] = jet.pt();
+        jet_tree->jet_E[jet_tree->num_jets] = 0;
+        jet_tree->jet_area_pt[jet_tree->num_jets] = 0;
+        jet_tree->rho = 0;
+        jet_tree->num_constituents[jet_tree->num_jets] = 0;
+        jet_tree->jet_charged_z[jet_tree->num_jets] = 0;
+        jet_tree->num_jets++;
+    }
+    // std::cout << "found "<< jet_tree->num_jets << " jets" << std::endl;
+    // std::cout << "Total pt: " << total_pt << std::endl;
+}

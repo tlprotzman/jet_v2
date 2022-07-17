@@ -30,10 +30,12 @@ LIBS += -lNetx
 qa_object_list = qa.o setup.o isobar_triggers.o tree_manager.o jet_tree.o event_tree.o jet_helper.o particle_anisotropy.o
 post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o 
 analysis_object_list = calculate_v2.o setup.o histogram_package.o histogram_data.o tree_manager.o jet_tree.o event_tree.o
+sim_v2_list = toy_v2.o tree_manager.o jet_tree.o event_tree.o
 
 qa_objects = $(qa_object_list:%.o=build/%.o)
 post_objects = $(post_object_list:%.o=build/%.o)
 analysis_objects = $(analysis_object_list:%.o=build/%.o)
+sim_v2_objects = $(sim_v2_list:%.o=build/%.o)
 
 
 all: qa analysis # post_qa
@@ -49,6 +51,9 @@ post_qa: $(post_objects)
 
 analysis: $(analysis_objects)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(analysis_objects) $(LIBS) -o analysis
+
+toy_v2: $(sim_v2_objects)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(sim_v2_objects) $(LIBS) -o sim_v2
 
 
 clean:

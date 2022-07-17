@@ -41,6 +41,7 @@ class Jet_Helper {
         ~Jet_Helper();
         void set_background_particles(std::vector<fastjet::PseudoJet> &tracks);
         std::vector<fastjet::PseudoJet> find_jets(std::vector<fastjet::PseudoJet> &tracks);
+        void fill_jet_tree_particles(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tree *jet_tree);
         void fill_jet_tree(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tree *jet_tree);
 
 };

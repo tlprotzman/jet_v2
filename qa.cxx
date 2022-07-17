@@ -131,10 +131,6 @@ int main(int argc, char **argv) {
             }
         }
 
-        if (!manager->only_ep_finding && !is_bht1_vpd30) {   // Only run analysis on bht1_vpd30 trigger - feels weird
-            continue;
-        }
-
         // Find event plane
         if (manager->only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
             continue;
@@ -190,57 +186,75 @@ int main(int argc, char **argv) {
             continue;
         }
         
-
-
-        std::vector<fastjet::PseudoJet> tracks = manager->reader->pseudojets();
-        std::vector<fastjet::PseudoJet> hardcore_tracks;
-        for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {    // Let's just play with tpc tracks for now
-            jetreader::VectorInfo track_info = track->user_info<jetreader::VectorInfo>();
-            if (track_info.isBemcTower()) {
-                std::cout << "found tower " << track_info.towerId() << std::endl;
-                
+        // Calculate charged particle v2 in min-bias data
+        if (is_minbias) {
+            std::vector<fastjet::PseudoJet> tracks = manager->reader->pseudojets();
+            for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {
+                double relative = track->phi() - event_tree->ep_east;
+                if (relative < 0) {
+                    relative += TMath::TwoPi();
+                }
+                if (relative > TMath::Pi()) {
+                    relative -= TMath::Pi();
+                }
+                qa_hist.particle_v2->Fill(relative, track->pt(), event_tree->centrality);
             }
-            if ((!track_info.isPrimary())) {
-                tracks.erase(track);
-                track--;
-            }
-            else {
-                double track_pt = track->pt();
-                qa_hist.track_momentum->Fill(track_pt);
-                qa_hist.track_loc->Fill(track->eta(), track->phi());
-                if (track_pt > 2) {
-                    hardcore_tracks.push_back(*track);
+        }
+
+        // Find jets in events with a high tower trigger
+        if (is_bht1_vpd30) {
+            std::vector<fastjet::PseudoJet> tracks = manager->reader->pseudojets();
+            std::vector<fastjet::PseudoJet> hardcore_tracks;
+            for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {    // Let's just play with tpc tracks for now
+                jetreader::VectorInfo track_info = track->user_info<jetreader::VectorInfo>();
+                if (track_info.isBemcTower()) {
+                    std::cout << "found tower " << track_info.towerId() << std::endl;
+                    
+                }
+                if ((!track_info.isPrimary())) {
+                    tracks.erase(track);
+                    track--;
+                }
+                else {
+                    double track_pt = track->pt();
+                    qa_hist.track_momentum->Fill(track_pt);
+                    qa_hist.track_loc->Fill(track->eta(), track->phi());
+                    if (track_pt > 2) {
+                        hardcore_tracks.push_back(*track);
+                    }
                 }
             }
-        }
-        // std::cout << "Regular track count: " << tracks.size() << std::endl;
-        // std::cout << "Hardcore track count: " << hardcore_tracks.size() << std::endl;
+            // std::cout << "Regular track count: " << tracks.size() << std::endl;
+            // std::cout << "Hardcore track count: " << hardcore_tracks.size() << std::endl;
 
 
-        std::vector<fastjet::PseudoJet> all_jets = jet_helper->find_jets(tracks);
-        jet_helper->set_background_particles(tracks);
-        jet_helper->fill_jet_tree(all_jets, jet_tree);
-        particle_anisotropy flow_description;
-        flow_description.rho = -999;
-        flow_description.v2 = -999;
-        flow_description.v3 = -999;
-        // std::cout << "num jets: " << all_jets.size() << std::endl;
-        if (all_jets.size() > 0) {
-            calculate_v2(tracks, all_jets[0], (ep_info.EastPhiWeightedAndShiftedPsi(1) + ep_info.WestPhiWeightedAndShiftedPsi(1)) / 2.0, flow_description, manager->reader->centrality16());
+            std::vector<fastjet::PseudoJet> all_jets = jet_helper->find_jets(tracks);
+            jet_helper->set_background_particles(tracks);
+            jet_helper->fill_jet_tree(all_jets, jet_tree);
+            // jet_helper->fill_jet_tree_particles(tracks, jet_tree);   // Hacky to calculate charged particle v2
+            particle_anisotropy flow_description;
+            flow_description.rho = -999;
+            flow_description.v2 = -999;
+            flow_description.v3 = -999;
+            // std::cout << "num jets: " << all_jets.size() << std::endl;
+            // if (all_jets.size() > 0) {
+                // flow_description.calculate_v2(tracks, all_jets[0], (ep_info.EastPhiWeightedAndShiftedPsi(1) + ep_info.WestPhiWeightedAndShiftedPsi(1)) / 2.0, flow_description, manager->reader->centrality16());
+            // }
+            // printf("Rho: %.4f\tV2: %.4f\tV3: %.04f\n", flow_description.rho, flow_description.v2, flow_description.v3);
+            qa_hist.rho->Fill(flow_description.rho, manager->reader->centrality16());
+            qa_hist.v2->Fill(flow_description.v2, manager->reader->centrality16());
+            qa_hist.v3->Fill(flow_description.v3, manager->reader->centrality16());
+            
+            std::vector<fastjet::PseudoJet> hardcore_jets = hardcore_jet_helper->find_jets(hardcore_tracks);
+            hardcore_jet_helper->set_background_particles(hardcore_tracks);
+            hardcore_jet_helper->fill_jet_tree(hardcore_jets, hardcore_jet_tree);
+            
+            
+            // std::cout << "Regular jet cout: " << jet_tree->num_jets << std::endl;
+            // std::cout << "Hardcore jet cout: " << hardcore_jet_tree->num_jets << std::endl;
+
         }
-        // printf("Rho: %.4f\tV2: %.4f\tV3: %.04f\n", flow_description.rho, flow_description.v2, flow_description.v3);
-        qa_hist.rho->Fill(flow_description.rho, manager->reader->centrality16());
-        qa_hist.v2->Fill(flow_description.v2, manager->reader->centrality16());
-        qa_hist.v3->Fill(flow_description.v3, manager->reader->centrality16());
-        
-        std::vector<fastjet::PseudoJet> hardcore_jets = hardcore_jet_helper->find_jets(hardcore_tracks);
-        hardcore_jet_helper->set_background_particles(hardcore_tracks);
-        hardcore_jet_helper->fill_jet_tree(hardcore_jets, hardcore_jet_tree);
-        
-        
-        // std::cout << "Regular jet cout: " << jet_tree->num_jets << std::endl;
-        // std::cout << "Hardcore jet cout: " << hardcore_jet_tree->num_jets << std::endl;
-        if (jet_tree->num_jets) {
+        if (true || jet_tree->num_jets) {
             event_tree->fill_tree();
         }
     }
