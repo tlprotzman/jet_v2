@@ -27,9 +27,9 @@ LIBS += -ljetreader
 LIBS += -lStEpdUtil
 LIBS += -lNetx
 
-qa_object_list = qa.o setup.o isobar_triggers.o tree_manager.o jet_tree.o event_tree.o jet_helper.o particle_anisotropy.o
-post_object_list = qa_histograms.o setup.o draw_histogram.o histogram_package.o histogram_data.o 
-analysis_object_list = calculate_v2.o setup.o histogram_package.o histogram_data.o tree_manager.o jet_tree.o event_tree.o
+qa_object_list = qa.o setup.o isobar_triggers.o tree_manager.o jet_tree.o event_tree.o jet_helper.o particle_anisotropy.o angle_tools.o
+post_object_list = qa_histograms.o setup.o draw_histogram.o  
+analysis_object_list = calculate_v2.o setup.o  tree_manager.o jet_tree.o event_tree.o
 sim_v2_list = toy_v2.o tree_manager.o jet_tree.o event_tree.o
 
 qa_objects = $(qa_object_list:%.o=build/%.o)

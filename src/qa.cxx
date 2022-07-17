@@ -52,6 +52,7 @@
 #include "jet_tree.h"
 #include "jet_helper.h"
 #include "particle_anisotropy.h"
+#include "angle_tools.h"
 
 // double JET_PT_CUT = 5;
 double NMIP_MIN = 0.3;
@@ -115,8 +116,8 @@ int main(int argc, char **argv) {
         StPicoEvent *event = manager->reader->picoDst()->event();
 
         // Event Info
-        bool is_minbias = false;
-        bool is_bht1_vpd30 = false;
+        bool is_minbias = false;    // min bias trigger
+        bool is_bht1_vpd30 = false; // High tower trigger
         event_tree->num_triggers = 0;
         for (auto t : event->triggerIds()) {
             if (trigger_names.triggers[t] == trigger_names.minbias) {
@@ -132,7 +133,7 @@ int main(int argc, char **argv) {
         }
 
         // Find event plane
-        if (manager->only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections - this confuses me
+        if (manager->only_ep_finding && !is_minbias) {   // Only use minbias events to generate the EPD corrections
             continue;
         }
 
@@ -141,9 +142,9 @@ int main(int argc, char **argv) {
         }
 
         // Pileup cut
-        if (!pileup_cut(event->numberOfPrimaryTracks(), event->nBTOFMatch(), event->btofTrayMultiplicity(), event->refMult3())) {
-            continue;
-        }
+        // if (!pileup_cut(event->numberOfPrimaryTracks(), event->nBTOFMatch(), event->btofTrayMultiplicity(), event->refMult3())) {    // This needs to be done properly...
+        //     continue;
+        // }
         
         event_tree->run_number = event->runId();
 
@@ -190,14 +191,8 @@ int main(int argc, char **argv) {
         if (is_minbias) {
             std::vector<fastjet::PseudoJet> tracks = manager->reader->pseudojets();
             for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {
-                double relative = track->phi() - event_tree->ep_east;
-                if (relative < 0) {
-                    relative += TMath::TwoPi();
-                }
-                if (relative > TMath::Pi()) {
-                    relative -= TMath::Pi();
-                }
-                qa_hist.particle_v2->Fill(relative, track->pt(), event_tree->centrality);
+                double angle = smallest_angle(track->phi(), event_tree->ep_east);
+                qa_hist.particle_v2->Fill(angle, track->pt(), event_tree->centrality);
             }
         }
 

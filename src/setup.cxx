@@ -98,6 +98,7 @@ int QA_Manager::setup_cuts() {
     std::string bad_run_list = "badrunlist.txt";
 
     // Track cuts
+    float track_pt_min = 0.1;
     float track_pt_max = 30;
     float track_dca_max = 1;
     float track_nhits_min = 15;
@@ -124,6 +125,7 @@ int QA_Manager::setup_cuts() {
         this->reader->eventSelector()->setVrMax(vr_max);
 
         // Tracks
+        this->reader->trackSelector()->setPtMin(track_pt_min);
         this->reader->trackSelector()->setPtMax(track_pt_max);
         this->reader->trackSelector()->setDcaMax(track_dca_max);
         this->reader->trackSelector()->setNHitsMin(track_nhits_min);
