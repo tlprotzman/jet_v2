@@ -14,7 +14,7 @@
 
 #include "jet_tree.h"
 
-double JET_PT_CUT = 5;
+double JET_PT_CUT = 3;
 
 Jet_Helper::Jet_Helper(const float _jet_resolution) {
     this->jet_reso = _jet_resolution;
@@ -25,7 +25,7 @@ Jet_Helper::Jet_Helper(const float _jet_resolution) {
     this->background_jet_area = fastjet::AreaDefinition(fastjet::active_area_explicit_ghosts, this->background_area_spec);
 
     this->jet_def = fastjet::JetDefinition(fastjet::antikt_algorithm, this->jet_reso);
-    this->background_subtraction_def = fastjet::JetDefinition(fastjet::antikt_algorithm, this->jet_reso);
+    this->background_subtraction_def = fastjet::JetDefinition(fastjet::kt_algorithm, this->jet_reso);
 
     this->jet_selector = fastjet::SelectorAbsRapMax(1) * (!fastjet::SelectorNHardest(2)); // wtf?
     this->jet_background_estimator = new fastjet::JetMedianBackgroundEstimator(this->jet_selector, this->background_subtraction_def, this->background_jet_area);

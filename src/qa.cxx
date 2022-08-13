@@ -82,8 +82,8 @@ int main(int argc, char **argv) {
       
     
     // Set up jet finding
-    Jet_Helper *jet_helper = new Jet_Helper(0.2);
-    Jet_Helper *hardcore_jet_helper = new Jet_Helper(0.2);
+    Jet_Helper *jet_helper = new Jet_Helper(0.4);
+    Jet_Helper *hardcore_jet_helper = new Jet_Helper(0.4);
 
     // Histograms
     qa_histograms qa_hist;
@@ -248,9 +248,9 @@ int main(int argc, char **argv) {
             // std::cout << "Regular jet cout: " << jet_tree->num_jets << std::endl;
             // std::cout << "Hardcore jet cout: " << hardcore_jet_tree->num_jets << std::endl;
 
-        }
-        if (true || jet_tree->num_jets) {
-            event_tree->fill_tree();
+            if (true || jet_tree->num_jets) {
+                event_tree->fill_tree();
+            }
         }
     }
 

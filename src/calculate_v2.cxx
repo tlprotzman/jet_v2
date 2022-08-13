@@ -33,28 +33,43 @@ int colors[16] = {kAzure + 10, kAzure,
                          };
 // const int num_cent_bins = 4;
 // char *cent_bins[num_cent_bins] = {"60-80%", "40-60%", "20-40%", "0-20%"};
-const int num_cent_bins = 8;
-char *cent_bins[num_cent_bins] = {"70-80%", "60-70%", "50-60%", "40-50%", "30-40%", "20-30%", "10-20%", "0-10%",};
+// const int num_cent_bins = 8;
+// char *cent_bins[num_cent_bins] = {"70-80%", "60-70%", "50-60%", "40-50%", "30-40%", "20-30%", "10-20%", "0-10%",};
+const int num_cent_bins = 1;
+char *cent_bins[num_cent_bins] = {"20-60%"};
 // int colors[num_cent_bins] = {kRed, kOrange, kBlue, kViolet};
 
-const int num_pt_bins = 3;
+const int num_pt_bins = 8;
+const int pt_bin_width = 6;
 
 // Forward declarations
 TChain* load_files(std::string file_list);
 TH3* setup_histogram();
-void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, TH3 *relative_angle, double *ep_resolution);
+void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, TH3 *relative_angle, double *ep_resolution, bool do_hardcore);
 void save_histogram(TH3 *hist, std::string outfile_name);
 int calculate_v2(TH1 *dphi, int cent_bin, int pt_bin);
 double*** bin_loop(TH3 *relative, double *ep_resolution);
 void draw_plot(TH1 *dphi, int cent_bin, int pt_bin);
-void plot_v2_values(double ***v2);
+void plot_v2_values(double ***v2, bool hardcore, int jet_radius);
 void plot_ep_reso(double *ep_reso);
 void plot_particle_v2(double ***particle_v2);
 
 
 int main(int argc, char **argv) {
-    // TChain *chain = load_files("in.list");
-    TChain *chain = load_files("single.list");
+    bool do_hardcore = false;
+    bool hardcore_only = false;
+    int jet_radius = 0;
+    if (argc < 4) {
+        std::cerr << "Please supply in file list, hardcore matching, and jet radius" << std::endl;
+        return 1;
+    }
+    do_hardcore = strcmp(argv[2], "matched") == 0;
+    hardcore_only = strcmp(argv[2], "exclusive") == 0;
+    std::cout << "hardcore matching? " << do_hardcore << std::endl;
+    jet_radius = std::atoi(argv[3]);
+    std::cout << "jet radius? " << jet_radius << std::endl;
+    TChain *chain = load_files(argv[1]);
+    // TChain *chain = load_files("single.list");
 
     
 
@@ -75,14 +90,18 @@ int main(int argc, char **argv) {
     for (int i = 0; i < num_cent_bins; i++) {
         ep_resolution[i] = 0;
     }
-    event_loop(chain, event_tree, jet_tree, hardcore_jet_tree, relative_angle, ep_resolution);
+    if (hardcore_only) {
+        event_loop(chain, event_tree, hardcore_jet_tree, hardcore_jet_tree, relative_angle, ep_resolution, do_hardcore);
+    } else {
+        event_loop(chain, event_tree, jet_tree, hardcore_jet_tree, relative_angle, ep_resolution, do_hardcore);
+    }
 
     double ***v2 = bin_loop(relative_angle, ep_resolution);
-    plot_v2_values(v2);
+    plot_v2_values(v2, do_hardcore, jet_radius);
     plot_ep_reso(ep_resolution);
     // plot_particle_v2(v2);
 
-    save_histogram(relative_angle, "relative_angles.root");
+    save_histogram(relative_angle, Form("relative_angles_%s_%i.root", do_hardcore ? "hardcore" : "all", jet_radius));
     // delete relative_angle;
     // delete event_tree;
     // delete jet_tree;
@@ -105,13 +124,13 @@ TChain* load_files(std::string file_list) {
 }
 
 TH3* setup_histogram() {
-    int n_phi_bins = 200;
+    int n_phi_bins = 25;
     double phi_low = 0;
     double phi_high = TMath::Pi();
 
     int n_pt_bins = num_pt_bins;
     double pt_low = 0;
-    double pt_high = 10 * n_pt_bins; // 10 GeV bins
+    double pt_high = 5 * n_pt_bins; // 10 GeV bins
 
     int n_centrality_bins = num_cent_bins;
     double centrality_low = -0.5;
@@ -133,10 +152,14 @@ bool hardcore_matched(Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, int index
     double j_phi = jet_tree->jet_phi[index];
     double j_eta = jet_tree->jet_eta[index];
     for (uint i = 0; i < hardcore_jet_tree->num_jets; i++) {
+        if (hardcore_jet_tree->jet_pt[i] < 10) {    // Requrie hardcore jets to have at least 10 GeV of momentum
+            continue;
+        }
+        // std::cout << hardcore_jet_tree->jet_pt[i] << std::endl;
         double d_phi = abs(j_phi - hardcore_jet_tree->jet_phi[i]);
         double d_eta = abs(j_eta - hardcore_jet_tree->jet_eta[i]);
         double dr = sqrt(d_phi * d_phi + d_eta * d_eta);
-        if (dr < 0.3) {
+        if (dr < 0.2) {
             // std::cout << "matched!\n";
             return true;
         }
@@ -145,7 +168,16 @@ bool hardcore_matched(Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, int index
     return false;
 }
 
-void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, TH3 *relative_angle, double *ep_resolution) {
+void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, TH3 *relative_angle, double *ep_resolution, bool do_hardcore) {
+    chain->SetBranchStatus("*", 0);
+    chain->SetBranchStatus("*_jet_eta", 1);
+    chain->SetBranchStatus("*_jet_phi", 1);
+    chain->SetBranchStatus("*_num_jets", 1);
+    chain->SetBranchStatus("*_jet_pt", 1);
+    chain->SetBranchStatus("all_jet_area_pt", 1);
+    chain->SetBranchStatus("event_ep*", 1);
+    chain->SetBranchStatus("event_centrality", 1);
+    
     int *n_events = (int*) malloc(num_cent_bins * sizeof(int));
     for (int i = 0; i < num_cent_bins; i++) {
         n_events[i] = 0;
@@ -155,26 +187,27 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_T
         // if (n > 1000000) {
         //     return;
         // }
-        if (n % 1000 == 0) {
-            printf("Processed %.3fM events\n", n / 1000000.);
+        if (n % 100000 == 0) {
+            printf("Processed %.1fM events\n", n / 1000000.);
         }
         chain->GetEvent(n); // Get the next events
 
-        if (event_tree->centrality >= 16 || event_tree->centrality < 0) {
+        if (event_tree->centrality > 7 || event_tree->centrality < 4) {
             continue; // Either very peripheral or can't determine 
         }
-        n_events[event_tree->centrality]++;
-        ep_resolution[event_tree->centrality] += cos(2 * (event_tree->ep_east - event_tree->ep_west));
+        n_events[0]++;
+        ep_resolution[0] += cos(2 * (event_tree->ep_east - event_tree->ep_west));
+        // continue;
 
         // For each jet in the event...
         for (int i = 0; i < jet_tree->num_jets; i++) {
-            // if (!hardcore_matched(jet_tree, hardcore_jet_tree, i)) {
-            //     continue;
-            // }
+            if (do_hardcore && (!hardcore_matched(jet_tree, hardcore_jet_tree, i))) {
+                continue;
+            }
             // if (jet_tree->jet_charged_z[i] > 0.95) {    // Skip jets mostly composed of single track
             //     continue;
             // }
-            if (abs(jet_tree->jet_eta[i]) > 0.7) {      // Skip jets within R of detector edge
+            if (abs(jet_tree->jet_eta[i]) > 0.8) {      // Skip jets within R of detector edge
                 continue;
             }
 
@@ -186,9 +219,9 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_T
             if (relative > TMath::Pi()) {
                 relative -= TMath::Pi();
             }
-            double background = 0;
-            // double assumed_background_v2 = 0.055;
-            // background = background * (1 + assumed_background_v2 * cos(2 * (relative)));
+            double background = 1;
+            double assumed_background_v2 = 0.04;
+            background = background * (1 + assumed_background_v2 * cos(2 * (relative)));
             relative_angle->Fill(relative, jet_tree->jet_pt[i] - background * jet_tree->jet_area_pt[i], event_tree->centrality);
         }
     }
@@ -231,7 +264,7 @@ double*** bin_loop(TH3 *relative, double *ep_resolution) {
         v2[0][cent_bin - 1] = (double*)malloc(8 * sizeof(double)); //v2[:][:][pt_bin]
         v2[1][cent_bin - 1] = (double*)malloc(8 * sizeof(double)); //v2[:][:][pt_bin]
 
-        relative->GetZaxis()->SetRange(cent_bin, cent_bin); // Restrict centrality range
+        relative->GetZaxis()->SetRangeUser(4, 11); // Restrict centrality range
         for (int pt_bin = 1; pt_bin <= relative->GetYaxis()->GetNbins(); pt_bin++) {
             relative->GetYaxis()->SetRange(pt_bin, pt_bin); // Restrict pt range
             TH1 *dphi = relative->Project3D("x");
@@ -271,8 +304,9 @@ void draw_plot(TH1 *dphi, int cent_bin, int pt_bin) {
 
 }
 
-void plot_v2_values(double ***v2) {
-    TCanvas *c = new TCanvas("", "", 2000, 1000);
+void plot_v2_values(double ***v2, bool hardcore, int jet_radius) {
+    TCanvas *c = new TCanvas("", "", 1000, 1000);
+    c->SetLeftMargin(0.12);
     // c->Divide(2, 1);
     // c->cd(1);
     TLegend *legend1 = new TLegend(0.1, 0.1, 0.25, 0.3);
@@ -280,22 +314,23 @@ void plot_v2_values(double ***v2) {
 
     double *x = (double*)malloc(num_pt_bins * sizeof(double));
     double *ex = (double*)malloc(num_pt_bins * sizeof(double));
-    for (int i = 0; i < num_pt_bins; i++) {
-        x[i] = 10 * i + 4.7;
-        ex[i] = 1;
+    for (int i = 1; i < num_pt_bins; i++) {
+        x[i] = 5 * i + 2.5;
+        ex[i] = 2.5;
     }
 
-    
+    std::string outfile_name(Form("v2_%s_%i.root", hardcore ? "hardcore" : "all", jet_radius));
+    TFile *outfile = new TFile(outfile_name.c_str(), "RECREATE");
     std::vector<TGraphErrors*> v2_graphs;
     bool first = true;
     for (int cent_bin = 0; cent_bin < num_cent_bins; cent_bin ++) {
         std::cout << "cent bin: " << cent_bin << "\tv2: " << v2[0][cent_bin][0] << std::endl;
         TGraphErrors *v2_plot = new TGraphErrors(num_pt_bins, x, v2[0][cent_bin], ex, v2[1][cent_bin]);
         // TGraphErrors *v2_plot = new TGraphErrors(num_pt_bins, x, x, ex, ex);
-        v2_plot->SetLineColor(colors[cent_bin]);
+        v2_plot->SetLineColor(kBlack);
         v2_plot->SetMarkerStyle(kDot);
-        v2_plot->SetMarkerSize(15);
-        v2_plot->SetMarkerColor(colors[cent_bin]);
+        v2_plot->SetMarkerSize(25);
+        v2_plot->SetMarkerColor(kBlack);
         v2_plot->SetLineWidth(2);
         // if (cent_bin < 8) {
             legend1->AddEntry(v2_plot, cent_bins[cent_bin]);
@@ -310,20 +345,31 @@ void plot_v2_values(double ***v2) {
         //     legend2->AddEntry(v2_plot, cent_bins[cent_bin]);
         // }
         v2_graphs.push_back(v2_plot);
-        for (int i = 0; i < num_pt_bins; i++) {
-            x[i] += 0.2;
-        }
+        // for (int i = 0; i < num_pt_bins; i++) {
+        //     x[i] += 0.2;
+        // }
     }
 
-    v2_graphs[0]->Draw("alp");
-    v2_graphs[0]->SetTitle("Jet v_{2}, hardcore matched");
+    v2_graphs[0]->Write();
+    outfile->Close();
+    delete outfile;
+
+    v2_graphs[0]->Draw("ap");
+    v2_graphs[0]->SetTitle(Form("Jet v_{2}%s", hardcore ? ", Hardcore Matched" : ""));
     v2_graphs[0]->GetXaxis()->SetTitle("p_{T}");
     v2_graphs[0]->GetYaxis()->SetTitle("v_{2}");
-    v2_graphs[0]->GetYaxis()->SetRangeUser(-0.2, 0.4);
-    for (int i = 1; i < num_cent_bins; i++) {
-        v2_graphs[i]->Draw("pl same");
-    }
-    legend1->Draw();
+    v2_graphs[0]->GetYaxis()->SetRangeUser(-0.4, 0.4);
+
+    TLatex *text = new TLatex();
+    text->SetTextSize(0.03);
+    text->DrawLatexNDC(0.18, 0.84, "#sqrt{S_{NN}}=200 GeV Ru+Ru/Zr+Zr");
+    text->DrawLatexNDC(0.18, 0.80, Form("R=0.%i Anti-K_{T}", jet_radius));
+    text->DrawLatexNDC(0.18, 0.76, "20-60\% Central");
+
+    // for (int i = 1; i < num_cent_bins; i++) {
+    //     v2_graphs[i]->Draw("p same");
+    // }
+    // legend1->Draw();
 
     // c->cd(2);
     // v2_graphs[8]->Draw("ap");

@@ -41,6 +41,8 @@ int main(int argc, char **argv) {
 
     // Histograms
     // Jet Spectra, all jets
+    TCanvas *c = new TCanvas("jet_spectra_canvas", "", 1000, 1000);
+    TH1 
     histogram_package jet_pt_spectra;
     jet_pt_spectra.set_save_location("plots/nocut_jet_pt_spectrum");
     jet_pt_spectra.set_log_y();
