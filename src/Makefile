@@ -31,11 +31,13 @@ qa_object_list = qa.o setup.o isobar_triggers.o tree_manager.o jet_tree.o event_
 post_object_list = qa_histograms.o setup.o draw_histogram.o  
 analysis_object_list = calculate_v2.o setup.o  tree_manager.o jet_tree.o event_tree.o
 sim_v2_list = toy_v2.o tree_manager.o jet_tree.o event_tree.o
+sim_v2_jet_list = toy_v2_jetfinding.o
 
 qa_objects = $(qa_object_list:%.o=build/%.o)
 post_objects = $(post_object_list:%.o=build/%.o)
 analysis_objects = $(analysis_object_list:%.o=build/%.o)
 sim_v2_objects = $(sim_v2_list:%.o=build/%.o)
+sim_v2_jet_objects = $(sim_v2_jet_list:%.o=build/%.o)
 
 
 all: qa analysis # post_qa
@@ -54,6 +56,9 @@ analysis: $(analysis_objects)
 
 toy_v2: $(sim_v2_objects)
 	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(sim_v2_objects) $(LIBS) -o sim_v2
+
+toy_v2_jet: $(sim_v2_jet_objects)
+	$(CXX) $(CXXFLAGS) $(LDFLAGS) $(LIBPATH) $(sim_v2_jet_objects) $(LIBS) -o sim_v2_jet
 
 
 clean:
