@@ -9,7 +9,10 @@
 #include <TMath.h>
 #include <TFile.h>
 #include <TROOT.h>
+#include <TRandom3.h>
 
+#include <chrono>
+#include <ctime>
 #include <stdexcept>
 #include <string>
 
@@ -22,13 +25,19 @@ QA_Manager::QA_Manager(int argc, char** argv) {
     this->do_cuts = true;
     this->has_pico_list = false;
     this->only_ep_finding = false;
+    this->tracking_efficiency_study = false;
     this->job_id = "";
     this->picos_to_read = "";
     this->debug_level = 0;
+    
 
     if (this->setup_tasks(argc, argv)) {    // Set up tasks
         throw std::runtime_error("Error initializing QA_Manager");
     }
+
+    this->rng = new TRandom3();
+    this->rng->SetSeed(std::time(nullptr) * std::hash<std::string>{}(this->job_id));    // Seed the RNG with current time and job id
+
     this->reader = new jetreader::Reader(this->picos_to_read); // Set up jetreader
     this->setup_cuts();
 }
@@ -40,7 +49,7 @@ QA_Manager::~QA_Manager() {
 // setup_tasks parses the arguments and sets appropriate variables
 int QA_Manager::setup_tasks(int argc, char** argv) {
     int optstring;
-    while ((optstring = getopt(argc, argv, "f:en:j:schm")) != -1) {
+    while ((optstring = getopt(argc, argv, "f:en:j:schmt")) != -1) {
         switch(optstring) {
             case 'f':
                 this->picos_to_read = std::string(optarg);
@@ -65,6 +74,10 @@ int QA_Manager::setup_tasks(int argc, char** argv) {
                 break;
             case 'm':
                 ROOT::EnableImplicitMT();
+                break;
+            case 't':
+                this->tracking_efficiency_study = true;
+                std::cerr << "WARNING: THROWING OUT " << this->tracking_efficiency_cut * 100 << "\% OF TRACKS!!!!!!!!" << std::endl;
                 break;
             case 'h':
                 std::cout << "Runs QA for Tristan's jet v2 analysis, targeting the isobar dataset\n";
@@ -98,7 +111,7 @@ int QA_Manager::setup_cuts() {
     std::string bad_run_list = "badrunlist.txt";
 
     // Track cuts
-    float track_pt_min = 0.1;
+    float track_pt_min = 0.2;
     float track_pt_max = 30;
     float track_dca_max = 1;
     float track_nhits_min = 15;
@@ -192,6 +205,11 @@ void setup_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist) {
     qa_hist->jet_subtracted_pt_spectra = new TH1D("jet_subtracted_momentum", "Jet Subtracted Momentum", 100, -10, 45);
     qa_hist->jet_loc = new TH2D("jet_loc", "Jet Loc", 100, -1.1, 1.1, 96, 0, TMath::TwoPi());
 
+    // Background estimation performance
+    qa_hist->delta_pt = new TH2D("delta_pt", "#delta p_{T}", 100, 0, TMath::TwoPi(), 200, -4, 8);
+    qa_hist->delta_pt->GetXaxis()->SetTitle("#Delta #phi");
+    qa_hist->delta_pt->GetYaxis()->SetTitle("#delta p_{T}");
+
     // Event plane
     ep_hist->east_uncorrected = new TH1D("east_uncorrected", "east_uncorrected", 30, 0, TMath::Pi());
     ep_hist->west_uncorrected = new TH1D("west_uncorrected", "west_uncorrected", 30, 0, TMath::Pi());
@@ -252,6 +270,9 @@ void save_histograms(qa_histograms *qa_hist, ep_histograms *ep_hist, TFile *outf
     qa_hist->jet_subtracted_pt_spectra->Write();
     qa_hist->jet_loc->SetDirectory(outfile);
     qa_hist->jet_loc->Write();
+
+    qa_hist->delta_pt->SetDirectory(outfile);
+    qa_hist->delta_pt->Write();
 
 
 

@@ -14,7 +14,7 @@
 
 #include "jet_tree.h"
 
-double JET_PT_CUT = 3;
+double JET_PT_CUT = 1;
 
 Jet_Helper::Jet_Helper(const float _jet_resolution) {
     this->jet_reso = _jet_resolution;
@@ -63,7 +63,7 @@ void Jet_Helper::fill_jet_tree(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tr
     double total_pt = 0;
     for (fastjet::PseudoJet jet : all_jets) {
         double subtracted_pt = jet.pt() - background * jet.area_4vector().pt();
-        if (subtracted_pt < JET_PT_CUT) {
+        if (jet.pt() < JET_PT_CUT) {
             continue;
         }
         if (jet.constituents().size() < 2) {
@@ -85,11 +85,10 @@ void Jet_Helper::fill_jet_tree(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tr
         for (auto constituent : jet.constituents()) {
             max_pt = constituent.pt() > max_pt ? constituent.pt() : max_pt;
         }
+        jet_tree->leading_track[jet_tree->num_jets] = max_pt;
         jet_tree->jet_charged_z[jet_tree->num_jets] = max_pt / jet.pt();
         jet_tree->num_jets++;
     }
-    // std::cout << "found "<< jet_tree->num_jets << " jets" << std::endl;
-    // std::cout << "Total pt: " << total_pt << std::endl;
 }
 
 void Jet_Helper::fill_jet_tree_particles(std::vector<fastjet::PseudoJet> &all_jets, Jet_Tree *jet_tree) {

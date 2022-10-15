@@ -63,6 +63,7 @@ double epd_mult(TClonesArray *epd_hits, int side=2);
 bool pileup_cut(int charged_particles, int tofmatch, int tofmult, int refmult3);
 
 int main(int argc, char **argv) {
+    double jet_radius = 0.2;
     // ROOT::EnableImplicitMT();
     // Set up QA manager, controls processes, cuts, io, etc...
     QA_Manager *manager = new QA_Manager(argc, argv);    
@@ -75,15 +76,19 @@ int main(int argc, char **argv) {
     
     Event_Tree *event_tree = new Event_Tree(jet_data, "event");
     event_tree->writeable_tree();
-    Jet_Tree *hardcore_jet_tree = new Jet_Tree(jet_data, "hc");
-    hardcore_jet_tree->writeable_tree();
+    Jet_Tree *hardcore_jet_tree_1 = new Jet_Tree(jet_data, "hc_1");
+    hardcore_jet_tree_1->writeable_tree();
+    Jet_Tree *hardcore_jet_tree_2 = new Jet_Tree(jet_data, "hc_2");
+    hardcore_jet_tree_2->writeable_tree();
+    Jet_Tree *hardcore_jet_tree_3 = new Jet_Tree(jet_data, "hc_3");
+    hardcore_jet_tree_3->writeable_tree();
     Jet_Tree *jet_tree = new Jet_Tree(jet_data, "all");
     jet_tree->writeable_tree();
       
     
     // Set up jet finding
-    Jet_Helper *jet_helper = new Jet_Helper(0.4);
-    Jet_Helper *hardcore_jet_helper = new Jet_Helper(0.4);
+    Jet_Helper *jet_helper = new Jet_Helper(jet_radius);
+    Jet_Helper *hardcore_jet_helper = new Jet_Helper(jet_radius);
 
     // Histograms
     qa_histograms qa_hist;
@@ -101,6 +106,11 @@ int main(int argc, char **argv) {
     // Trigger Identification
     isobar_triggers trigger_names; 
 
+    TFile *eventout_file = new TFile("event_display_out.root", "RECREATE");
+    
+
+    long possible_tracks = 0;
+    long removed_tracks = 0;
 
     // Event Loop
     int processed_events = 0;
@@ -199,7 +209,15 @@ int main(int argc, char **argv) {
         // Find jets in events with a high tower trigger
         if (is_bht1_vpd30) {
             std::vector<fastjet::PseudoJet> tracks = manager->reader->pseudojets();
-            std::vector<fastjet::PseudoJet> hardcore_tracks;
+            std::vector<fastjet::PseudoJet> hardcore_tracks_1;
+            std::vector<fastjet::PseudoJet> hardcore_tracks_2;
+            std::vector<fastjet::PseudoJet> hardcore_tracks_3;
+            TH2 *event_display = new TH2D(Form("event_display_%i", processed_events), "Event Display", 25, -1, 1, 25, 0, TMath::TwoPi());
+            event_display->GetXaxis()->SetTitle("#eta");
+            event_display->GetXaxis()->SetTitle("#phi");
+            event_display->GetZaxis()->SetTitle("p_{T}");
+            event_display->SetDirectory(eventout_file);
+            double max_pt = 0;
             for (std::vector<fastjet::PseudoJet>::iterator track = tracks.begin(); track != tracks.end(); track++) {    // Let's just play with tpc tracks for now
                 jetreader::VectorInfo track_info = track->user_info<jetreader::VectorInfo>();
                 if (track_info.isBemcTower()) {
@@ -209,15 +227,36 @@ int main(int argc, char **argv) {
                 if ((!track_info.isPrimary())) {
                     tracks.erase(track);
                     track--;
+                    continue;
                 }
-                else {
-                    double track_pt = track->pt();
-                    qa_hist.track_momentum->Fill(track_pt);
-                    qa_hist.track_loc->Fill(track->eta(), track->phi());
-                    if (track_pt > 2) {
-                        hardcore_tracks.push_back(*track);
-                    }
+                possible_tracks++;
+                if (manager->tracking_efficiency_study && manager->rng->Rndm() < manager->tracking_efficiency_cut) {
+                    // std::cerr << "Throwing out track!" << std::endl;
+                    removed_tracks++;
+                    tracks.erase(track);
+                    track--;
+                    continue;;
                 }
+                
+                double track_pt = track->pt();
+                if (track_pt > max_pt) {
+                    max_pt = track_pt;
+                }
+                qa_hist.track_momentum->Fill(track_pt);
+                qa_hist.track_loc->Fill(track->eta(), track->phi());
+                event_display->Fill(track->eta(), track->phi(), track->pt());
+                if (track_pt > 1) {
+                    hardcore_tracks_1.push_back(*track);
+                }
+                if (track_pt > 2) {
+                    hardcore_tracks_2.push_back(*track);
+                } 
+                if (track_pt > 3) {
+                    hardcore_tracks_3.push_back(*track);
+                }
+            }
+            if (max_pt < 8) {
+                delete event_display;
             }
             // std::cout << "Regular track count: " << tracks.size() << std::endl;
             // std::cout << "Hardcore track count: " << hardcore_tracks.size() << std::endl;
@@ -240,19 +279,74 @@ int main(int argc, char **argv) {
             qa_hist.v2->Fill(flow_description.v2, manager->reader->centrality16());
             qa_hist.v3->Fill(flow_description.v3, manager->reader->centrality16());
             
-            std::vector<fastjet::PseudoJet> hardcore_jets = hardcore_jet_helper->find_jets(hardcore_tracks);
-            hardcore_jet_helper->set_background_particles(hardcore_tracks);
-            hardcore_jet_helper->fill_jet_tree(hardcore_jets, hardcore_jet_tree);
+            hardcore_jet_tree_1->num_jets = 0;
+            // std::vector<fastjet::PseudoJet> hardcore_jets_1 = hardcore_jet_helper->find_jets(hardcore_tracks_1);
+            // hardcore_jet_helper->set_background_particles(hardcore_tracks_1);
+            // hardcore_jet_helper->fill_jet_tree(hardcore_jets_1, hardcore_jet_tree_1);
+
+            std::vector<fastjet::PseudoJet> hardcore_jets_2 = hardcore_jet_helper->find_jets(hardcore_tracks_2);
+            hardcore_jet_helper->set_background_particles(hardcore_tracks_2);
+            hardcore_jet_helper->fill_jet_tree(hardcore_jets_2, hardcore_jet_tree_2);
+
+            hardcore_jet_tree_3->num_jets = 0;
+            // std::vector<fastjet::PseudoJet> hardcore_jets_3 = hardcore_jet_helper->find_jets(hardcore_tracks_3);
+            // hardcore_jet_helper->set_background_particles(hardcore_tracks_3);
+            // hardcore_jet_helper->fill_jet_tree(hardcore_jets_3, hardcore_jet_tree_3);
+            
+
+            // Calculate delta pt
+            int tries = 0;
+            bool valid = true;
+            fastjet::PseudoJet *axis = new fastjet::PseudoJet();
+            do {
+                double r_eta = manager->rng->Rndm() * 2 - 1;
+                double r_phi = manager->rng->Rndm() * TMath::TwoPi();
+                axis->reset_momentum_PtYPhiM(1, r_eta, r_phi);
+                for (fastjet::PseudoJet jet : hardcore_jets_2) {
+                    if (jet.pt() < 5) {
+                        continue;
+                    }
+                    if (axis->delta_R(jet) < jet_radius) {
+                        valid = false;
+                    }
+                }
+                tries++;
+            } while (valid && tries < 10);
+            if (valid) {
+                double total_pt = 0;
+                for (fastjet::PseudoJet track : tracks) {
+                    if (axis->delta_R(track) < jet_radius) {
+                        total_pt += track.pt();
+                    }
+                }
+                double pt_diff = total_pt - (TMath::Pi() * jet_radius * jet_radius * jet_tree->rho);
+                double delta_ep = axis->phi() - event_tree->ep_east;
+                if (delta_ep < 0) {
+                    delta_ep += TMath::TwoPi();
+                }
+                if (jet_tree->rho != 0) {
+                    qa_hist.delta_pt->Fill(delta_ep, pt_diff);
+                }
+            } else {
+                std::cerr << "Cannot find valid angle for delta pt calculation" << std::endl;
+            }
+            
             
             
             // std::cout << "Regular jet cout: " << jet_tree->num_jets << std::endl;
             // std::cout << "Hardcore jet cout: " << hardcore_jet_tree->num_jets << std::endl;
 
-            if (true || jet_tree->num_jets) {
+            if (jet_tree->num_jets) {
                 event_tree->fill_tree();
             }
         }
     }
+    eventout_file->Write();
+    eventout_file->Close();
+
+    std::cout << "Possible Tracks: " << possible_tracks << std::endl;
+    std::cout << "Removed Tracks: " << removed_tracks << std::endl;
+    std::cout << "Removed Fraction: " << (double)removed_tracks / (double)possible_tracks << std::endl;
 
     std::cout << "Count: " << processed_events << std::endl;
     ep_finder->Finish();

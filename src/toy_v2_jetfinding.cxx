@@ -17,6 +17,7 @@
 #include <fastjet/GhostedAreaSpec.hh>
 #include <fastjet/JetDefinition.hh>
 #include <fastjet/PseudoJet.hh>
+#include <fastjet/tools/JetMedianBackgroundEstimator.hh>
 
 #include <iostream>
 #include <vector>
@@ -34,7 +35,7 @@ double boltzmann_distribution(TRandom *rng, double temperature, double max) {
 void simulation(int job_id) {
 
     // Set up model parameters
-    int n = 250000; // Number of events to throw
+    int n = 100000; // Number of events to throw
     
     double max_eta = 1;  // Bounds on eta
     double reaction_plane = 0;    // Direction of flow
@@ -87,6 +88,8 @@ void simulation(int job_id) {
     fastjet::GhostedAreaSpec area_spec = fastjet::GhostedAreaSpec(1);
     fastjet::AreaDefinition jet_area = fastjet::AreaDefinition(fastjet::active_area, area_spec);
     fastjet::JetDefinition jet_definition = fastjet::JetDefinition(fastjet::antikt_algorithm, jet_reso);    
+    fastjet::Selector jet_selector = fastjet::SelectorAbsRapMax(1) * (!fastjet::SelectorNHardest(2)); // wtf?
+    fastjet::JetMedianBackgroundEstimator bge(jet_selector, fastjet::JetDefinition(fastjet::kt_algorithm, jet_reso), fastjet::AreaDefinition(fastjet::active_area_explicit_ghosts, fastjet::GhostedAreaSpec(1)));
 
     // Event loop
     for (uint i = 0; i < n; i++) {
@@ -98,7 +101,7 @@ void simulation(int job_id) {
         
         // Populate event
         int event_multiplicity = (int)rng->Gaus(multiplicity, multiplicity_deviation);
-        for (uint j = 0; j < event_multiplicity; j++) {
+        for (uint j = 1; j < event_multiplicity; j++) {
             double track_eta = max_eta * (2 * rng->Rndm() - 1);
             double track_phi = rng->Rndm() * TMath::TwoPi();
             double delta_phi = -1 * v2 * sin(2 * track_phi - reaction_plane);   // Add flow
@@ -112,24 +115,55 @@ void simulation(int job_id) {
             track_loc_dist->Fill(track_eta, track_phi);
             
             double track_pt = boltzmann_distribution(rng, temperature, max_track_pt);
-            track_pt_dist->Fill(track_pt);
             // Turn into pseudojet and add to collection
             fastjet::PseudoJet track;
             track.reset_PtYPhiM(track_pt, track_eta, track_phi);
+            if (track_pt > 2) {
+                track_pt_dist->Fill(track_pt);
+                tracks.push_back(track);
+            }
+        }
+
+        // Add hard particles
+        uint n_hard_particles = 1;
+        double hard_particle_pt = 15;
+        double hard_particle_v2 = 0.0;
+        for (uint j = 0; j < n_hard_particles; j++) {
+            double track_eta = max_eta * (2 * rng->Rndm() - 1);
+            double track_phi = rng->Rndm() * TMath::TwoPi();
+            double delta_phi = -1 * hard_particle_v2 * sin(2 * track_phi - reaction_plane);   // Add flow
+            track_phi += delta_phi;
+            if (track_phi < 0) {
+                track_phi += TMath::TwoPi();
+            }
+            if (track_phi > TMath::TwoPi()) {
+                track_phi -= TMath::TwoPi();
+            }
+            track_loc_dist->Fill(track_eta, track_phi);
+            fastjet::PseudoJet track;
+            track.reset_PtYPhiM(hard_particle_pt, track_eta, track_phi);
             tracks.push_back(track);
         }
         
         // Jet finding
         auto cluster_sequence = fastjet::ClusterSequenceArea(tracks, jet_definition, jet_area);
         std::vector<fastjet::PseudoJet> jets = fastjet::sorted_by_pt(cluster_sequence.inclusive_jets(10));
+        bge.set_particles(tracks);
+        // std::cout << rho << std::endl;
+
 
         // Populate jet statistics
         for (fastjet::PseudoJet jet : jets) {
+            double rho = bge.rho() * (1 + 2 * v2 * cos(2 * jet.phi()));
+            double jet_pt = jet.pt() - jet.area() * rho;
             if (abs(jet.eta()) > max_eta - jet_reso) {
                 continue;
             } 
-            jet_loc_dist->Fill(jet.eta(), jet.phi());
-            jet_pt_dist->Fill(jet.pt());
+            // std::cout << jet.pt() << std::endl;
+            if (jet_pt > 10) {
+                jet_loc_dist->Fill(jet.eta(), jet.phi());
+                jet_pt_dist->Fill(jet_pt);
+            }
         }
     }
     track_loc_dist->Write();
@@ -162,8 +196,10 @@ void plot() {
     v2_fit_jet->SetParNames("offset", "v2");
     track_phi->Fit(v2_fit_track);
     double v2_track = v2_fit_track->GetParameter("v2");
+    double v2_track_err = v2_fit_track->GetParError(v2_fit_track->GetParNumber("v2"));
     jet_phi->Fit(v2_fit_jet);
     double v2_jet = v2_fit_jet->GetParameter("v2");
+    double v2_jet_err = v2_fit_jet->GetParError(v2_fit_jet->GetParNumber("v2"));
 
     // Plotting!
     TCanvas *c = new TCanvas("", "", 1000, 1000);
@@ -180,8 +216,8 @@ void plot() {
 
 
     TLegend *legend = new TLegend(0.2, 0.12, 0.5, 0.22);
-    legend->AddEntry(track_phi, Form("Tracks: v_{2}=%.3f", v2_track));
-    legend->AddEntry(jet_phi, Form("Jets: v_{2}=%.3f", v2_jet));
+    legend->AddEntry(track_phi, Form("Tracks: v_{2}=%.3f#pm%.4f", v2_track, v2_track_err));
+    legend->AddEntry(jet_phi, Form("Jets: v_{2}=%.3f#pm%.4f", v2_jet, v2_jet_err));
     legend->SetBorderSize(0);
     legend->SetLineWidth(15);
     legend->SetTextSize(0.03);
@@ -198,9 +234,11 @@ void plot() {
     TLatex *text = new TLatex();
     text->SetTextSize(0.03);
     text->SetTextFont(42);
-    text->DrawLatexNDC(0.2, 0.32, "Combinatorial Jet v_{2} Effects");
-    text->DrawLatexNDC(0.2, 0.28, "Assumed Particle v_{2} = 0.05");
-    text->DrawLatexNDC(0.2, 0.24, "Anti-k_{T} R=0.2, p_{T}^{#hbox{jet}} > 10 GeV");
+    text->DrawLatexNDC(0.2, 0.40, "Combinatorial Jet v_{2} Effects");
+    text->DrawLatexNDC(0.2, 0.36, "Assumed Particle v_{2} = 0.05");
+    text->DrawLatexNDC(0.2, 0.32, "Assumed Jet v_{2} = 0.00");
+    text->DrawLatexNDC(0.2, 0.28, "Anti-k_{T} R=0.2, p_{T}^{#hbox{jet}} > 10 GeV");
+    text->DrawLatexNDC(0.2, 0.24, "Constituent p_{T} > 2 GeV");
 
     c->SaveAs("toy_v2.png");
 }

@@ -6,6 +6,7 @@
 #include <TH2.h>
 #include <TH3.h>
 #include <TFile.h>
+#include <TRandom.h>
 
 #include <vector>
 #include <string>
@@ -59,8 +60,11 @@ public:
     bool max_events_set;
     int max_events;
     bool only_ep_finding;
+    bool tracking_efficiency_study;
+    double tracking_efficiency_cut = 0.04;
     std::string job_id;
     TFile out_file;
+    TRandom *rng;
 
     jetreader::Reader *reader;
 
@@ -128,6 +132,7 @@ typedef struct {
     TH2 *v2;
     TH2 *v3;
     TH3 *particle_v2; // one dimension for angle, one dimension for momentum, one dimension for centrality
+    TH2 *delta_pt;
 } qa_histograms;
 
 typedef struct {
