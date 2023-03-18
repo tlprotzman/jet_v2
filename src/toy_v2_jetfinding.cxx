@@ -34,7 +34,7 @@ double boltzmann_distribution(TRandom *rng, double temperature, double max) {
 void simulation(int job_id) {
 
     // Set up model parameters
-    int n = 250000; // Number of events to throw
+    int n = 25000; // Number of events to throw
     
     double max_eta = 1;  // Bounds on eta
     double reaction_plane = 0;    // Direction of flow
@@ -171,17 +171,21 @@ void plot() {
 
     THStack *stack = new THStack();
     track_phi->SetLineColor(kRed);
+    track_phi->SetLineWidth(4);
     v2_fit_track->SetLineColor(kRed);
     jet_phi->SetLineColor(kBlue);
+    jet_phi->SetLineWidth(4);
     v2_fit_jet->SetLineColor(kBlue);
     
+    stack->SetMinimum(0.0);
+    stack->SetMaximum(0.1);
     stack->Add(track_phi);
     stack->Add(jet_phi);
 
 
     TLegend *legend = new TLegend(0.2, 0.12, 0.5, 0.22);
-    legend->AddEntry(track_phi, Form("Tracks: v_{2}=%.3f", v2_track));
-    legend->AddEntry(jet_phi, Form("Jets: v_{2}=%.3f", v2_jet));
+    legend->AddEntry(track_phi, Form("Reconstructed Particle v_{2}: %.3f", v2_track));
+    legend->AddEntry(jet_phi, Form("Reconstructed Jet v_{2}: %.3f", v2_jet));
     legend->SetBorderSize(0);
     legend->SetLineWidth(15);
     legend->SetTextSize(0.03);
@@ -198,11 +202,15 @@ void plot() {
     TLatex *text = new TLatex();
     text->SetTextSize(0.03);
     text->SetTextFont(42);
-    text->DrawLatexNDC(0.2, 0.32, "Combinatorial Jet v_{2} Effects");
-    text->DrawLatexNDC(0.2, 0.28, "Assumed Particle v_{2} = 0.05");
-    text->DrawLatexNDC(0.2, 0.24, "Anti-k_{T} R=0.2, p_{T}^{#hbox{jet}} > 10 GeV");
+    text->DrawLatexNDC(0.2, 0.86, "Combinatorial Jet v_{2} Effects");
+    text->DrawLatexNDC(0.2, 0.82, "Thermal background, T=500 MeV");
+    text->DrawLatexNDC(0.2, 0.78, "Truth Particle v_{2} = 0.05");
+    text->DrawLatexNDC(0.2, 0.74, "Anti-k_{T} R=0.2, p_{T}^{#hbox{jet}} > 10 GeV");
+    text->DrawLatexNDC(0.2, 0.70, "No Hard Core Matching Requirement");
 
     c->SaveAs("toy_v2.png");
+    c->SaveAs("toy_v2.pdf");
+    c->SaveAs("toy_v2.svg");
 }
 
 int main(int argc, char **argv) {
