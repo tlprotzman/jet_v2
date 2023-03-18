@@ -6,6 +6,7 @@
 #include <TH3D.h>
 #include <TMath.h>
 #include <TCanvas.h>
+#include <TFile.h>
 #include <TStyle.h>
 #include <TLatex.h>
 #include <TGraph.h>
@@ -15,6 +16,7 @@
 
 #include "jet_tree.h"
 #include "event_tree.h"
+#include "v2_analyzer.h"
 
 #include <fstream>
 #include <iostream>
@@ -39,10 +41,12 @@ const int num_cent_bins = 1;
 char *cent_bins[num_cent_bins] = {"20-60%"};
 // int colors[num_cent_bins] = {kRed, kOrange, kBlue, kViolet};
 
-const int num_pt_bins = 8;
+const int num_pt_bins = 7;
+double pt_bins[num_pt_bins + 1] = {0, 5, 10, 15, 20, 25, 30, 40};
 const int pt_bin_width = 6;
 
 // Forward declarations
+TH1* merge_histograms(std::string file_list, std::string histo_name);
 TChain* load_files(std::string file_list);
 TH3* setup_histogram();
 void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, TH3 *relative_angle, double *ep_resolution, bool do_hardcore);
@@ -56,19 +60,25 @@ void plot_particle_v2(double ***particle_v2);
 
 
 int main(int argc, char **argv) {
-    bool do_hardcore = false;
-    bool hardcore_only = false;
-    int jet_radius = 0;
-    if (argc < 4) {
-        std::cerr << "Please supply in file list, hardcore matching, and jet radius" << std::endl;
+    if (argc < 2) {
+        std::cerr << "Please supply in jet radius" << std::endl;
         return 1;
     }
+    // ROOT::EnableImplicitMT();
+    double jet_radius = std::atoi(argv[1]) / 10.;
+    v2_analyzer *analyzer = new v2_analyzer(jet_radius, std::string("r02.list"));
+    analyzer->run_analysis(000000);
+    analyzer->save_histograms("testout.root");
+
+    return 0;
+    // int jet_radius = std::atoi(argv[1]);
+    bool do_hardcore = false;
+    bool hardcore_only = false;
     do_hardcore = strcmp(argv[2], "matched") == 0;
     hardcore_only = strcmp(argv[2], "exclusive") == 0;
     std::cout << "hardcore matching? " << do_hardcore << std::endl;
-    jet_radius = std::atoi(argv[3]);
     std::cout << "jet radius? " << jet_radius << std::endl;
-    TChain *chain = load_files(argv[1]);
+    TChain *chain = load_files(Form("r0%i.list", jet_radius));
     // TChain *chain = load_files("single.list");
 
     
@@ -84,6 +94,7 @@ int main(int argc, char **argv) {
 
     // Create momentum and centrality bins
     TH3 *relative_angle = setup_histogram();
+    // return 0;
 
     // Process events
     double *ep_resolution = (double*)malloc(num_cent_bins * sizeof(double));
@@ -95,20 +106,44 @@ int main(int argc, char **argv) {
     } else {
         event_loop(chain, event_tree, jet_tree, hardcore_jet_tree, relative_angle, ep_resolution, do_hardcore);
     }
-
     double ***v2 = bin_loop(relative_angle, ep_resolution);
     plot_v2_values(v2, do_hardcore, jet_radius);
     plot_ep_reso(ep_resolution);
     // plot_particle_v2(v2);
 
-    save_histogram(relative_angle, Form("relative_angles_%s_%i.root", do_hardcore ? "hardcore" : "all", jet_radius));
+    std::string saveas = "all";
+    if (do_hardcore) {
+        saveas = "hardcore";
+    }
+    if (hardcore_only) {
+        saveas = "exclusive";
+    }
+
+    save_histogram(relative_angle, Form("relative_angles_%s_%i.root", saveas.c_str(), jet_radius));
     // delete relative_angle;
     // delete event_tree;
     // delete jet_tree;
     // delete hardcore_jet_tree;
     // delete chain;
+}
 
 
+// 100% untested 
+TH1* merge_histograms(std::string file_list, std::string histo_name) {
+    TH1 *merged = nullptr;
+    std::ifstream files(file_list);
+    std::string file_path;
+    while (files >> file_path) {
+        TFile *f = new TFile(file_path.c_str());
+        if (merged == nullptr) {
+            merged = (TH1*)f->Get<TH1>(histo_name.c_str())->Clone();
+        } else {
+            merged->Add(f->Get<TH1>(histo_name.c_str()));
+        }
+        f->Close();
+        delete f;
+    }
+    return merged;
 }
 
 TChain* load_files(std::string file_list) {
@@ -127,6 +162,11 @@ TH3* setup_histogram() {
     int n_phi_bins = 25;
     double phi_low = 0;
     double phi_high = TMath::Pi();
+    double phi_bins[n_phi_bins + 1];
+    for (uint32_t i = 0; i < n_phi_bins + 1; i++) {
+        phi_bins[i] = phi_low + i * ((phi_high - phi_low) / n_phi_bins);
+        std::cout << phi_bins[i] << std::endl;
+    }
 
     int n_pt_bins = num_pt_bins;
     double pt_low = 0;
@@ -135,11 +175,16 @@ TH3* setup_histogram() {
     int n_centrality_bins = num_cent_bins;
     double centrality_low = -0.5;
     double centrality_high = 15.5;
+    double cent_bins[n_centrality_bins + 1];// = {-0.5, 0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5, 12.5, 13.5, 14.5, 15.5};
+    for (uint32_t i = 0; i < n_centrality_bins + 1; i++) {
+        cent_bins[i] = centrality_low + i * ((centrality_high - centrality_low) / n_centrality_bins);
+        std::cout << cent_bins[i] << std::endl;
+    }
 
     TH3 *h = new TH3D("relative", "relative",
-                      n_phi_bins, phi_low, phi_high,
-                      n_pt_bins, pt_low, pt_high,
-                      n_centrality_bins, centrality_low, centrality_high);
+                      n_phi_bins, phi_bins,
+                      n_pt_bins, pt_bins,
+                      n_centrality_bins, cent_bins);
 
     h->GetXaxis()->SetTitle("Phi");
     h->GetYaxis()->SetTitle("Momentum");
@@ -159,7 +204,7 @@ bool hardcore_matched(Jet_Tree *jet_tree, Jet_Tree *hardcore_jet_tree, int index
         double d_phi = abs(j_phi - hardcore_jet_tree->jet_phi[i]);
         double d_eta = abs(j_eta - hardcore_jet_tree->jet_eta[i]);
         double dr = sqrt(d_phi * d_phi + d_eta * d_eta);
-        if (dr < 0.2) {
+        if (dr < 0.2) {     // DAMNIT TRISTAN WHY IS THIS NOT DYNAMIC
             // std::cout << "matched!\n";
             return true;
         }
@@ -192,7 +237,7 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_T
         }
         chain->GetEvent(n); // Get the next events
 
-        if (event_tree->centrality > 7 || event_tree->centrality < 4) {
+        if (event_tree->centrality > 11 || event_tree->centrality < 4) {
             continue; // Either very peripheral or can't determine 
         }
         n_events[0]++;
@@ -219,7 +264,7 @@ void event_loop(TChain *chain, Event_Tree *event_tree, Jet_Tree *jet_tree, Jet_T
             if (relative > TMath::Pi()) {
                 relative -= TMath::Pi();
             }
-            double background = 1;
+            double background = jet_tree->rho;
             double assumed_background_v2 = 0.04;
             background = background * (1 + assumed_background_v2 * cos(2 * (relative)));
             relative_angle->Fill(relative, jet_tree->jet_pt[i] - background * jet_tree->jet_area_pt[i], event_tree->centrality);
@@ -264,7 +309,7 @@ double*** bin_loop(TH3 *relative, double *ep_resolution) {
         v2[0][cent_bin - 1] = (double*)malloc(8 * sizeof(double)); //v2[:][:][pt_bin]
         v2[1][cent_bin - 1] = (double*)malloc(8 * sizeof(double)); //v2[:][:][pt_bin]
 
-        relative->GetZaxis()->SetRangeUser(4, 11); // Restrict centrality range
+        // relative->GetZaxis()->SetRangeUser(6, 9); // Restrict centrality range
         for (int pt_bin = 1; pt_bin <= relative->GetYaxis()->GetNbins(); pt_bin++) {
             relative->GetYaxis()->SetRange(pt_bin, pt_bin); // Restrict pt range
             TH1 *dphi = relative->Project3D("x");
@@ -318,6 +363,8 @@ void plot_v2_values(double ***v2, bool hardcore, int jet_radius) {
         x[i] = 5 * i + 2.5;
         ex[i] = 2.5;
     }
+    x[6] = 35;
+    ex[6] = 5;
 
     std::string outfile_name(Form("v2_%s_%i.root", hardcore ? "hardcore" : "all", jet_radius));
     TFile *outfile = new TFile(outfile_name.c_str(), "RECREATE");

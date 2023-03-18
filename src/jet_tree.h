@@ -15,6 +15,7 @@ class Jet_Tree: public Tree_Manager {
         double *jet_charged_z;
         double *jet_neutral_z;
         double *jet_neutral_fraction;
+        double *leading_track;
         double rho;
         double *jet_area_pt;
 

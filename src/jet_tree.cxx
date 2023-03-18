@@ -18,6 +18,7 @@ Jet_Tree::Jet_Tree(TTree *_tree, std::string _tag) : Tree_Manager(_tree, _tag) {
     this->jet_neutral_z = (double*)malloc(this->num_entries * sizeof(double));
     this->jet_neutral_fraction = (double*)malloc(this->num_entries * sizeof(double));
     this->jet_area_pt = (double*)malloc(this->num_entries * sizeof(double));
+    this->leading_track = (double*)malloc(this->num_entries * sizeof(double));
 }
 
 Jet_Tree::~Jet_Tree() {
@@ -31,6 +32,7 @@ Jet_Tree::~Jet_Tree() {
     free(this->jet_neutral_z);
     free(this->jet_neutral_fraction);
     free(this->jet_area_pt);
+    free(this->leading_track);
 }
 
 int Jet_Tree::writeable_tree() {
@@ -45,6 +47,7 @@ int Jet_Tree::writeable_tree() {
     this->tree->Branch(Form("%s_jet_neutral_z", this->tag), this->jet_neutral_z, Form("%s_jet_neutral_z[%s_num_jets]/D", this->tag, this->tag));
     this->tree->Branch(Form("%s_jet_neutral_fraction", this->tag), this->jet_neutral_fraction, Form("%s_jet_neutral_fraction[%s_num_jets]/D", this->tag, this->tag));
     this->tree->Branch(Form("%s_jet_area_pt", this->tag), this->jet_area_pt, Form("%s_jet_area_pt[%s_num_jets]/D", this->tag, this->tag));
+    this->tree->Branch(Form("%s_leading_track", this->tag), this->leading_track, Form("%s_leading_track[%s_num_jets]/D", this->tag, this->tag));
     this->tree->Branch(Form("%s_rho", this->tag), &this->rho);
     return 0;
 }
